@@ -13,12 +13,10 @@ INSERT INTO perm_menu (id, parent_id, menu_code, menu_name, route_path, componen
 (23, NULL, 'forms', '表单中心', '/forms', NULL, 'Document', 45, 1, 'ENABLED');
 
 INSERT INTO perm_menu (id, parent_id, menu_code, menu_name, route_path, component, icon, sort_order, visible, status) VALUES
-(58, 3, 'org_depts', '组织架构', '/org/depts', NULL, NULL, 0, 1, 'ENABLED'),
-(59, 3, 'org_users', '用户管理', '/org/users', NULL, NULL, 1, 1, 'ENABLED'),
-(24, 3, 'org_positions', '岗位管理', '/org/positions', NULL, NULL, 2, 1, 'ENABLED'),
-(25, 3, 'org_ranks', '职级管理', '/org/ranks', NULL, NULL, 3, 1, 'ENABLED'),
-(26, 3, 'org_contacts', '通讯录', '/org/contacts', NULL, NULL, 4, 1, 'ENABLED'),
-(27, 3, 'org_change_logs', '变更日志', '/org/change-logs', NULL, NULL, 5, 1, 'ENABLED'),
+(24, 3, 'org_positions', '岗位管理', '/org/positions', NULL, NULL, 1, 1, 'ENABLED'),
+(25, 3, 'org_ranks', '职级管理', '/org/ranks', NULL, NULL, 2, 1, 'ENABLED'),
+(26, 3, 'org_contacts', '通讯录', '/org/contacts', NULL, NULL, 3, 1, 'ENABLED'),
+(27, 3, 'org_change_logs', '变更日志', '/org/change-logs', NULL, NULL, 4, 1, 'ENABLED'),
 (28, 4, 'perm_data_scopes', '数据权限', '/permission/data-scopes', NULL, NULL, 1, 1, 'ENABLED'),
 (29, 4, 'perm_field_perms', '字段权限', '/permission/field-permissions', NULL, NULL, 2, 1, 'ENABLED'),
 (30, 5, 'wf_template_designer', '模板设计', NULL, NULL, NULL, 1, 1, 'ENABLED'),
