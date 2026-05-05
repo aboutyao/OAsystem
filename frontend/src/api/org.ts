@@ -13,9 +13,16 @@ export function updateDept(id: number, body: Record<string, unknown>) {
   return http.put<unknown, JsonObject>(`/org/depts/${id}`, body)
 }
 
-export function listUsers(page = 1, size = 20, keyword?: string) {
+export function listUsers(page = 1, size = 20, keyword?: string, mainDeptId?: number, employeeStatus?: string, accountStatus?: string) {
   return http.get<unknown, PageResponse<JsonObject>>('/org/users', {
-    params: { page, size, ...(keyword ? { keyword } : {}) },
+    params: {
+      page,
+      size,
+      ...(keyword ? { keyword } : {}),
+      ...(mainDeptId != null ? { mainDeptId } : {}),
+      ...(employeeStatus ? { employeeStatus } : {}),
+      ...(accountStatus ? { accountStatus } : {}),
+    },
   })
 }
 
@@ -73,6 +80,18 @@ export function updateRank(id: number, body: Record<string, unknown>) {
 
 export function deleteRank(id: number) {
   return http.delete<unknown, JsonObject>(`/org/ranks/${id}`)
+}
+
+export function importUsers(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return http.post<unknown, { created: number; skipped: number; errors: string[] }>('/org/users/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
+
+export function exportUsers() {
+  return '/api/org/users/export'
 }
 
 export function listChangeLogs(page = 1, size = 20, targetType?: string, changeType?: string) {

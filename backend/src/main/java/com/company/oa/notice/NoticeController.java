@@ -29,9 +29,10 @@ public class NoticeController {
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "20") long size,
             @RequestParam(required = false) Boolean mine,
-            @RequestParam(required = false) String status
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category
     ) {
-        return noticeService.list(page, size, mine, status);
+        return noticeService.list(page, size, mine, status, category);
     }
 
     @PreAuthorize("isAuthenticated()")

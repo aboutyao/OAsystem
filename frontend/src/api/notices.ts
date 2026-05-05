@@ -1,13 +1,14 @@
 import { http } from './http'
 import type { JsonObject, PageResponse } from './types'
 
-export function listNotices(page = 1, size = 20, mine?: boolean, status?: string) {
+export function listNotices(page = 1, size = 20, mine?: boolean, status?: string, category?: string) {
   return http.get<unknown, PageResponse<JsonObject>>('/notices', {
     params: {
       page,
       size,
       ...(mine === true ? { mine: true } : {}),
       ...(status ? { status } : {}),
+      ...(category ? { category } : {}),
     },
   })
 }

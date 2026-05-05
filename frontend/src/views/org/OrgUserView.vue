@@ -6,11 +6,13 @@ import {
   disableUser,
   enableUser,
   getDeptTree,
+  importUsers,
   listPositions,
   listRanks,
   listUsers,
   resignUser,
   updateUser,
+  exportUsers,
 } from '../../api/org'
 import type { JsonObject } from '../../api/types'
 
@@ -21,8 +23,19 @@ const page = ref(1)
 const size = ref(20)
 const keyword = ref('')
 
+// Filter state
+const filterDeptId = ref<number | undefined>(undefined)
+const filterEmployeeStatus = ref('')
+const filterAccountStatus = ref('')
+
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
+
+// Import state
+const importDialogVisible = ref(false)
+const importFile = ref<File | undefined>()
+const importing = ref(false)
+const importResult = ref<{ created: number; skipped: number; errors: string[] } | null>(null)
 
 // Dropdown data
 const deptTree = ref<JsonObject[]>([])
@@ -45,7 +58,14 @@ const form = reactive({
 async function load() {
   loading.value = true
   try {
-    const res = await listUsers(page.value, size.value, keyword.value || undefined)
+    const res = await listUsers(
+      page.value,
+      size.value,
+      keyword.value || undefined,
+      filterDeptId.value,
+      filterEmployeeStatus.value || undefined,
+      filterAccountStatus.value || undefined,
+    )
     rows.value = res.items
     total.value = Number(res.total)
   } catch (e) {
@@ -53,6 +73,11 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+function onFilterChange() {
+  page.value = 1
+  void load()
 }
 
 async function loadDropdowns() {
@@ -170,6 +195,39 @@ function statusTag(status: string) {
     default: return { type: 'info' as const, label: status }
   }
 }
+
+function openImportDialog() {
+  importFile.value = undefined
+  importResult.value = null
+  importDialogVisible.value = true
+}
+
+function handleImportFileChange(file: File | undefined) {
+  importFile.value = file
+}
+
+async function submitImport() {
+  if (!importFile.value) {
+    ElMessage.warning('请选择 CSV 文件')
+    return
+  }
+  importing.value = true
+  importResult.value = null
+  try {
+    const result = await importUsers(importFile.value)
+    importResult.value = result
+    ElMessage.success(`导入完成：成功 ${result.created} 条，跳过 ${result.skipped} 条`)
+    await load()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '导入失败')
+  } finally {
+    importing.value = false
+  }
+}
+
+function handleExport() {
+  window.open(exportUsers(), '_blank')
+}
 </script>
 
 <template>
@@ -182,8 +240,40 @@ function statusTag(status: string) {
       <div class="oa-page__actions">
         <el-input v-model="keyword" placeholder="用户名/姓名/工号" clearable style="width: 220px" @change="load" />
         <el-button type="primary" @click="openCreate">新增用户</el-button>
+        <el-button @click="openImportDialog">导入用户</el-button>
+        <el-button @click="handleExport">导出</el-button>
       </div>
     </div>
+
+    <el-card shadow="never" style="margin-bottom: 16px">
+      <el-form :inline="true" label-width="80px">
+        <el-form-item label="部门">
+          <el-tree-select
+            v-model="filterDeptId"
+            :data="deptTree"
+            :props="{ label: 'name', value: 'id', children: 'children' }"
+            check-strictly
+            clearable
+            placeholder="选择部门"
+            style="width: 200px"
+            @change="onFilterChange"
+          />
+        </el-form-item>
+        <el-form-item label="员工状态">
+          <el-select v-model="filterEmployeeStatus" clearable placeholder="全部" style="width: 140px" @change="onFilterChange">
+            <el-option label="在职" value="ACTIVE" />
+            <el-option label="离职" value="RESIGNED" />
+            <el-option label="停用" value="DISABLED" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="账号状态">
+          <el-select v-model="filterAccountStatus" clearable placeholder="全部" style="width: 140px" @change="onFilterChange">
+            <el-option label="正常" value="ACTIVE" />
+            <el-option label="停用" value="DISABLED" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
     <el-card shadow="never">
       <el-table v-loading="loading" :data="rows" stripe>
@@ -271,6 +361,52 @@ function statusTag(status: string) {
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submit">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Import Dialog -->
+    <el-dialog v-model="importDialogVisible" title="导入用户" width="500px" destroy-on-close>
+      <div style="margin-bottom: 16px">
+        <p class="muted" style="margin-bottom: 8px">请上传 CSV 文件，格式：</p>
+        <p class="muted" style="font-family: monospace; background: var(--el-fill-color-lighter); padding: 8px; border-radius: 4px">
+          username,employeeNo,realName,mainDeptId
+        </p>
+        <p class="muted" style="margin-top: 8px; font-size: 13px">
+          mainDeptId 为系统中已存在的部门 ID，可从导出文件获取。
+        </p>
+      </div>
+      <el-upload
+        drag
+        :auto-upload="false"
+        :show-file-list="true"
+        :limit="1"
+        accept=".csv"
+        @change="handleImportFileChange"
+      >
+        <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+        <div class="el-upload__text">将 CSV 文件拖到此处，或<em>点击选择</em></div>
+      </el-upload>
+
+      <div v-if="importResult" style="margin-top: 16px">
+        <el-alert
+          :title="`导入完成：成功 ${importResult.created} 条，跳过 ${importResult.skipped} 条`"
+          :type="importResult.skipped > 0 ? 'warning' : 'success'"
+          show-icon
+          :closable="false"
+        />
+        <div v-if="importResult.errors.length > 0" style="margin-top: 8px">
+          <p style="font-weight: 600; margin-bottom: 4px">错误详情：</p>
+          <div style="max-height: 200px; overflow-y: auto; background: var(--el-fill-color-lighter); padding: 8px; border-radius: 4px; font-size: 13px">
+            <p v-for="(err, idx) in importResult.errors" :key="idx" style="color: var(--el-color-danger); margin-bottom: 2px">{{ err }}</p>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="importDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="importing" :disabled="!importFile" @click="submitImport">
+          {{ importing ? '导入中...' : '导入' }}
+        </el-button>
       </template>
     </el-dialog>
   </div>

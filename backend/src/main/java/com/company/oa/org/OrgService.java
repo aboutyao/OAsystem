@@ -234,22 +234,34 @@ public class OrgService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<Map<String, Object>> listUsers(long page, long size, String keyword) {
+    public PageResponse<Map<String, Object>> listUsers(long page, long size, String keyword,
+                                                       Long mainDeptId, String employeeStatus,
+                                                       String accountStatus) {
         long[] ps = clampPage(page, size);
         String kw = StringUtils.hasText(keyword) ? "%" + keyword.trim() + "%" : null;
-        long total;
+
+        // Build count query with optional filters
+        var countWrapper = new LambdaQueryWrapper<User>().eq(User::getDeleted, 0);
         if (kw != null) {
-            total = userMapper.selectCount(
-                    new LambdaQueryWrapper<User>()
-                            .eq(User::getDeleted, 0)
-                            .and(w -> w.like(User::getUsername, kw)
-                                    .or().like(User::getRealName, kw)
-                                    .or().like(User::getEmployeeNo, kw)));
-        } else {
-            total = userMapper.selectCount(
-                    new LambdaQueryWrapper<User>().eq(User::getDeleted, 0));
+            countWrapper.and(w -> w.like(User::getUsername, kw)
+                    .or().like(User::getRealName, kw)
+                    .or().like(User::getEmployeeNo, kw));
         }
-        List<Map<String, Object>> items = userMapper.selectUserList(kw, ps[1], (ps[0] - 1) * ps[1]);
+        if (mainDeptId != null) {
+            countWrapper.eq(User::getMainDeptId, mainDeptId);
+        }
+        if (StringUtils.hasText(employeeStatus)) {
+            countWrapper.eq(User::getEmployeeStatus, employeeStatus);
+        }
+        if (StringUtils.hasText(accountStatus)) {
+            countWrapper.eq(User::getAccountStatus, accountStatus);
+        }
+        long total = userMapper.selectCount(countWrapper);
+
+        String es = StringUtils.hasText(employeeStatus) ? employeeStatus.trim() : null;
+        String accs = StringUtils.hasText(accountStatus) ? accountStatus.trim() : null;
+        List<Map<String, Object>> items = userMapper.selectUserList(kw, ps[1], (ps[0] - 1) * ps[1],
+                mainDeptId, es, accs);
         return new PageResponse<>(ps[0], ps[1], total, items);
     }
 

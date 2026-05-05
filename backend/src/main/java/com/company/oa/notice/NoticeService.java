@@ -59,7 +59,7 @@ public class NoticeService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<Map<String, Object>> list(long page, long size, Boolean mine, String status) {
+    public PageResponse<Map<String, Object>> list(long page, long size, Boolean mine, String status, String category) {
         AuthUser user = authService.currentUser();
         long[] ps = clampPage(page, size);
         boolean superUser = user.permissions().contains("*");
@@ -78,6 +78,9 @@ public class NoticeService {
             wrapper.eq(OaNotice::getStatus, PUBLISHED);
             wrapper.isNotNull(OaNotice::getPublishAt);
             wrapper.le(OaNotice::getPublishAt, LocalDateTime.now());
+        }
+        if (category != null && !category.isBlank()) {
+            wrapper.eq(OaNotice::getCategory, category);
         }
 
         long total = noticeMapper.selectCount(wrapper);

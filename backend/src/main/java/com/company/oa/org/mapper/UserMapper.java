@@ -36,12 +36,24 @@ public interface UserMapper extends BaseMapper<User> {
             <if test="keyword != null">
               and (u.username like #{keyword} or u.real_name like #{keyword} or u.employee_no like #{keyword})
             </if>
+            <if test="mainDeptId != null">
+              and u.main_dept_id = #{mainDeptId}
+            </if>
+            <if test="employeeStatus != null and employeeStatus != ''">
+              and u.employee_status = #{employeeStatus}
+            </if>
+            <if test="accountStatus != null and accountStatus != ''">
+              and u.account_status = #{accountStatus}
+            </if>
             order by u.id limit #{limit} offset #{offset}
             </script>
             """)
     List<Map<String, Object>> selectUserList(@Param("keyword") String keyword,
                                               @Param("limit") long limit,
-                                              @Param("offset") long offset);
+                                              @Param("offset") long offset,
+                                              @Param("mainDeptId") Long mainDeptId,
+                                              @Param("employeeStatus") String employeeStatus,
+                                              @Param("accountStatus") String accountStatus);
 
     @Select("""
             select u.id, u.username, u.employee_no as employeeNo, u.real_name as realName,

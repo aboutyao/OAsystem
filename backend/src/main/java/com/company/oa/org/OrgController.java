@@ -82,9 +82,12 @@ public class OrgController {
     public PageResponse<Map<String, Object>> users(
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "20") long size,
-            @RequestParam(required = false) String keyword
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long mainDeptId,
+            @RequestParam(required = false) String employeeStatus,
+            @RequestParam(required = false) String accountStatus
     ) {
-        return orgService.listUsers(page, size, keyword);
+        return orgService.listUsers(page, size, keyword, mainDeptId, employeeStatus, accountStatus);
     }
 
     @PreAuthorize("hasAnyAuthority('*', 'org:view')")

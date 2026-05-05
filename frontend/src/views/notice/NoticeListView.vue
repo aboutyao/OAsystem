@@ -14,10 +14,20 @@ const page = ref(1)
 const size = ref(20)
 const mineOnly = ref(false)
 
+// Filter state
+const filterCategory = ref('')
+const filterStatus = ref('')
+
 async function load() {
   loading.value = true
   try {
-    const res = await listNotices(page.value, size.value, mineOnly.value || undefined, undefined)
+    const res = await listNotices(
+      page.value,
+      size.value,
+      mineOnly.value || undefined,
+      filterStatus.value || undefined,
+      filterCategory.value || undefined,
+    )
     rows.value = res.items
     total.value = Number(res.total)
   } catch (e) {
@@ -28,6 +38,11 @@ async function load() {
 }
 
 void load()
+
+function onFilterChange() {
+  page.value = 1
+  void load()
+}
 
 function handleSizeChange() {
   page.value = 1
@@ -60,6 +75,25 @@ function goCreate() {
         <el-button type="primary" @click="goCreate">新建公告</el-button>
       </div>
     </div>
+
+    <el-card shadow="never" style="margin-bottom: 16px">
+      <el-form :inline="true" label-width="80px">
+        <el-form-item label="分类">
+          <el-select v-model="filterCategory" clearable placeholder="全部" style="width: 160px" @change="onFilterChange">
+            <el-option label="一般" value="GENERAL" />
+            <el-option label="通知" value="NOTICE" />
+            <el-option label="公告" value="ANNOUNCEMENT" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filterStatus" clearable placeholder="全部" style="width: 140px" @change="onFilterChange">
+            <el-option label="草稿" value="DRAFT" />
+            <el-option label="已发布" value="PUBLISHED" />
+            <el-option label="已撤回" value="WITHDRAWN" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
     <el-card shadow="never">
       <el-table v-loading="loading" :data="rows" stripe>
