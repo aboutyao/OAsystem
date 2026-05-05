@@ -108,6 +108,18 @@ async function submit() {
             登录
           </el-button>
         </el-form>
+
+        <div class="login-panel__hint">
+          <div class="login-panel__hint-title">💡 演示账号</div>
+          <div class="login-panel__hint-row">
+            <span class="login-panel__hint-label">管理员：</span>
+            <code>admin</code> / <code>admin123</code>
+          </div>
+          <div class="login-panel__hint-row" style="margin-top: 2px">
+            <span class="login-panel__hint-label">提示：</span>
+            <span>密码可直接在用户管理中修改</span>
+          </div>
+        </div>
       </div>
 
       <!-- Footer with copyright -->
@@ -154,5 +166,39 @@ async function submit() {
 .login-panel__copyright {
   font-size: 12px;
   color: var(--oa-text-muted);
+}
+
+.login-panel__hint {
+  margin-top: 24px;
+  padding: 12px 16px;
+  background: var(--oa-bg-card, #f9fafb);
+  border: 1px dashed var(--oa-border, #d9d9d9);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.login-panel__hint-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--oa-text-primary);
+}
+
+.login-panel__hint-row {
+  color: var(--oa-text-secondary);
+}
+
+.login-panel__hint-label {
+  display: inline-block;
+  min-width: 72px;
+}
+
+.login-panel__hint-row code {
+  background: var(--oa-fill-tertiary, #f0f0f0);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--oa-primary);
 }
 </style>
