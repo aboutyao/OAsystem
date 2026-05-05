@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { getDashboardSummary, type DashboardSummary } from '../api/dashboard'
@@ -16,6 +16,20 @@ const asideWidth = computed(() => (isCollapsed.value ? '64px' : '240px'))
 const notificationCount = computed(() => {
   if (!dashSummary.value) return 0
   return (dashSummary.value.todoCount ?? 0) + (dashSummary.value.messageCount ?? 0) + (dashSummary.value.ccCount ?? 0)
+})
+
+// 路由变化时刷新未读计数
+watch(() => route.path, () => {
+  loadNotificationCount()
+})
+
+// 每30秒自动刷新未读计数
+let refreshInterval: ReturnType<typeof setInterval> | null = null
+onMounted(() => {
+  refreshInterval = setInterval(loadNotificationCount, 30000)
+})
+onUnmounted(() => {
+  if (refreshInterval) clearInterval(refreshInterval)
 })
 
 // Breadcrumb from menu hierarchy
