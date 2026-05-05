@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://company.oa/workflow"
+             typeLanguage="http://www.w3.org/2001/XMLSchema"
+             expressionLanguage="http://www.w3.org/1999/XPath"
+             exporter="OA"
+             exporterVersion="1.0">
+    <process id="oa_simple_approval" name="OA Simple Approval" isExecutable="true">
+        <startEvent id="startEvent" name="开始"/>
+        <sequenceFlow id="flow1" sourceRef="startEvent" targetRef="managerApprove"/>
+        <userTask id="managerApprove" name="经理审批" flowable:assignee="${managerId}"/>
+        <sequenceFlow id="flow2" sourceRef="managerApprove" targetRef="endEvent"/>
+        <endEvent id="endEvent" name="结束"/>
+    </process>
+</definitions>

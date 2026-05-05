@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             targetNamespace="http://company.oa/workflow"
+             typeLanguage="http://www.w3.org/2001/XMLSchema"
+             expressionLanguage="http://www.w3.org/1999/XPath"
+             exporter="OA"
+             exporterVersion="1.0">
+    <process id="contract_approval" name="Contract Approval" isExecutable="true">
+        <startEvent id="startEvent" name="开始"/>
+        <sequenceFlow id="flow1" sourceRef="startEvent" targetRef="checkAmount"/>
+        <exclusiveGateway id="checkAmount" name="合同金额判断"/>
+        <sequenceFlow id="flow2a" sourceRef="checkAmount" targetRef="contractAdminApprove">
+            <conditionExpression xsi:type="tFormalExpression">${contractAmount &lt;= 100000}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow2b" sourceRef="checkAmount" targetRef="deptHeadApprove">
+            <conditionExpression xsi:type="tFormalExpression">${contractAmount > 100000}</conditionExpression>
+        </sequenceFlow>
+        <userTask id="contractAdminApprove" name="合同管理员审核" flowable:assignee="${contractAdminId}"/>
+        <sequenceFlow id="flow3" sourceRef="contractAdminApprove" targetRef="endEvent"/>
+        <userTask id="deptHeadApprove" name="部门主管审批" flowable:assignee="${deptHeadId}"/>
+        <sequenceFlow id="flow4" sourceRef="deptHeadApprove" targetRef="contractAdminApprove2"/>
+        <userTask id="contractAdminApprove2" name="合同管理员审核" flowable:assignee="${contractAdminId}"/>
+        <sequenceFlow id="flow5" sourceRef="contractAdminApprove2" targetRef="gmApprove"/>
+        <userTask id="gmApprove" name="总经理审批" flowable:assignee="${gmId}"/>
+        <sequenceFlow id="flow6" sourceRef="gmApprove" targetRef="endEvent"/>
+        <endEvent id="endEvent" name="结束"/>
+    </process>
+</definitions>

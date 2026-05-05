@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             targetNamespace="http://company.oa/workflow"
+             typeLanguage="http://www.w3.org/2001/XMLSchema"
+             expressionLanguage="http://www.w3.org/1999/XPath"
+             exporter="OA"
+             exporterVersion="1.0">
+    <process id="oa_expense_approval" name="OA Expense Approval" isExecutable="true">
+        <startEvent id="startEvent" name="开始"/>
+        <sequenceFlow id="flow1" sourceRef="startEvent" targetRef="checkAmount"/>
+        <exclusiveGateway id="checkAmount" name="报销金额判断"/>
+        <sequenceFlow id="flow2a" sourceRef="checkAmount" targetRef="financeReview">
+            <conditionExpression xsi:type="tFormalExpression">${totalAmount &lt;= 5000}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow2b" sourceRef="checkAmount" targetRef="deptHeadApprove">
+            <conditionExpression xsi:type="tFormalExpression">${totalAmount > 5000 &amp;&amp; totalAmount &lt;= 10000}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow2c" sourceRef="checkAmount" targetRef="deptHeadApprove">
+            <conditionExpression xsi:type="tFormalExpression">${totalAmount > 10000}</conditionExpression>
+        </sequenceFlow>
+        <userTask id="financeReview" name="财务审核" flowable:assignee="${financeAdminId}"/>
+        <sequenceFlow id="flow3" sourceRef="financeReview" targetRef="endEvent"/>
+        <userTask id="deptHeadApprove" name="部门主管审批" flowable:assignee="${deptHeadId}"/>
+        <sequenceFlow id="flow4" sourceRef="deptHeadApprove" targetRef="checkAmount2"/>
+        <exclusiveGateway id="checkAmount2" name="是否需要总经理审批"/>
+        <sequenceFlow id="flow5a" sourceRef="checkAmount2" targetRef="financeReview2">
+            <conditionExpression xsi:type="tFormalExpression">${totalAmount &lt;= 10000}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow5b" sourceRef="checkAmount2" targetRef="gmApprove">
+            <conditionExpression xsi:type="tFormalExpression">${totalAmount > 10000}</conditionExpression>
+        </sequenceFlow>
+        <userTask id="gmApprove" name="总经理审批" flowable:assignee="${gmId}"/>
+        <sequenceFlow id="flow6" sourceRef="gmApprove" targetRef="financeReview2"/>
+        <userTask id="financeReview2" name="财务复核" flowable:assignee="${financeAdminId}"/>
+        <sequenceFlow id="flow7" sourceRef="financeReview2" targetRef="endEvent"/>
+        <endEvent id="endEvent" name="结束"/>
+    </process>
+</definitions>

@@ -1,0 +1,111 @@
+package com.company.oa.workflow.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.company.oa.entity.wf.WfTask;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+@Mapper
+public interface WfTaskMapper extends BaseMapper<WfTask> {
+
+    @Select("""
+            select wt.id, wt.id as taskId, inst.title, wt.node_name as nodeName, wt.status, wt.wf_instance_id as wfInstanceId,
+                   inst.process_instance_id as processInstanceId, wt.created_at as createdAt
+            from wf_task wt
+            join wf_process_instance inst on inst.id = wt.wf_instance_id
+            where wt.assignee_id = #{assigneeId} and wt.status = #{status}
+            order by wt.id desc
+            limit #{limit} offset #{offset}
+            """)
+    List<Map<String, Object>> selectTodoTasks(@Param("assigneeId") long assigneeId,
+                                               @Param("status") String status,
+                                               @Param("limit") long limit,
+                                               @Param("offset") long offset);
+
+    @Select("select count(*) from wf_task wt where wt.assignee_id = #{assigneeId} and wt.status = #{status}")
+    Long countTodoTasks(@Param("assigneeId") long assigneeId, @Param("status") String status);
+
+    @Select("""
+            select wt.id, wt.id as taskId, inst.title, wt.node_name as nodeName, wt.status, wt.wf_instance_id as wfInstanceId,
+                   inst.process_instance_id as processInstanceId, wt.completed_at as completedAt
+            from wf_task wt
+            join wf_process_instance inst on inst.id = wt.wf_instance_id
+            where wt.assignee_id = #{assigneeId} and wt.status in ('COMPLETED','CANCELLED')
+            order by coalesce(wt.completed_at, wt.created_at) desc, wt.id desc
+            limit #{limit} offset #{offset}
+            """)
+    List<Map<String, Object>> selectDoneTasks(@Param("assigneeId") long assigneeId,
+                                               @Param("limit") long limit,
+                                               @Param("offset") long offset);
+
+    @Select("select count(*) from wf_task wt where wt.assignee_id = #{assigneeId} and wt.status in ('COMPLETED','CANCELLED')")
+    Long countDoneTasks(@Param("assigneeId") long assigneeId);
+
+    @Select("""
+            select wt.id, wt.flowable_task_id as flowableTaskId, wt.process_instance_id as processInstanceId,
+                   wt.wf_instance_id as wfInstanceId, wt.node_id as nodeId, wt.node_name as nodeName,
+                   wt.status, wt.assignee_id as assigneeId,
+                   wt.add_sign_origin_task_id as addSignOriginTaskId, wt.add_sign_mode as addSignMode
+            from wf_task wt where wt.id = #{id}
+            """)
+    Map<String, Object> loadWfTask(@Param("id") long id);
+
+    @Select("select assignee_id from wf_task where wf_instance_id = #{wfInstanceId} and status = #{status}")
+    List<Long> selectAssigneeIdsByInstanceAndStatus(@Param("wfInstanceId") long wfInstanceId,
+                                                     @Param("status") String status);
+
+    @Update("""
+            update wf_task set status = #{status}, completed_at = #{completedAt}
+            where wf_instance_id = #{wfInstanceId} and status = #{oldStatus}
+            """)
+    int updateStatusByInstanceAndOldStatus(@Param("wfInstanceId") long wfInstanceId,
+                                            @Param("status") String status,
+                                            @Param("completedAt") LocalDateTime completedAt,
+                                            @Param("oldStatus") String oldStatus);
+
+    @Update("update wf_task set status = #{status}, completed_at = #{completedAt} where id = #{id}")
+    int updateStatusById(@Param("id") long id, @Param("status") String status,
+                          @Param("completedAt") LocalDateTime completedAt);
+
+    @Update("update wf_task set status = #{status} where id = #{id} and status = #{oldStatus}")
+    int updateStatusByIdAndOldStatus(@Param("id") long id, @Param("status") String status,
+                                      @Param("oldStatus") String oldStatus);
+
+    @Update("""
+            update wf_task set assignee_id = #{assigneeId}, assignee_name_snapshot = #{assigneeName},
+                   assignee_dept_id = #{assigneeDeptId}
+            where id = #{id}
+            """)
+    int updateAssignee(@Param("id") long id, @Param("assigneeId") long assigneeId,
+                        @Param("assigneeName") String assigneeName, @Param("assigneeDeptId") Long assigneeDeptId);
+
+    @Update("""
+            update wf_task set status = 'CANCELLED', completed_at = #{now}
+            where flowable_task_id = #{flowableTaskId} and id <> #{excludeId} and status = 'PENDING'
+              and (add_sign_mode = 'PARALLEL' or add_sign_origin_task_id is null)
+            """)
+    int cancelParallelSiblings(@Param("flowableTaskId") String flowableTaskId,
+                                @Param("excludeId") long excludeId,
+                                @Param("now") LocalDateTime now);
+
+    @Update("delete from wf_task where wf_instance_id = #{wfInstanceId} and status = #{status} and add_sign_mode is null and add_sign_origin_task_id is null")
+    int deletePlainPendingByInstance(@Param("wfInstanceId") long wfInstanceId, @Param("status") String status);
+
+    @Select("""
+            select wt.id as taskId, inst.title, wt.node_name as nodeName, wt.status,
+                   wt.wf_instance_id as wfInstanceId, inst.business_type as businessType,
+                   inst.business_id as businessId, wt.created_at as createdAt
+            from wf_task wt
+            join wf_process_instance inst on inst.id = wt.wf_instance_id
+            where wt.assignee_id = #{assigneeId} and wt.status = 'PENDING'
+            order by wt.created_at desc, wt.id desc
+            limit #{limit}
+            """)
+    List<Map<String, Object>> selectDashboardTodos(@Param("assigneeId") long assigneeId, @Param("limit") int limit);
+}

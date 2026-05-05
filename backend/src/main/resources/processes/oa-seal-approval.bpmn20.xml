@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             targetNamespace="http://company.oa/workflow"
+             typeLanguage="http://www.w3.org/2001/XMLSchema"
+             expressionLanguage="http://www.w3.org/1999/XPath"
+             exporter="OA"
+             exporterVersion="1.0">
+    <process id="oa_seal_approval" name="OA Seal Approval" isExecutable="true">
+        <startEvent id="startEvent" name="开始"/>
+        <sequenceFlow id="flow1" sourceRef="startEvent" targetRef="checkSealType"/>
+        <exclusiveGateway id="checkSealType" name="印章类型判断"/>
+        <sequenceFlow id="flow2a" sourceRef="checkSealType" targetRef="adminApprove">
+            <conditionExpression xsi:type="tFormalExpression">${sealImportance == 'NORMAL'}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow2b" sourceRef="checkSealType" targetRef="deptHeadApprove">
+            <conditionExpression xsi:type="tFormalExpression">${sealImportance == 'IMPORTANT'}</conditionExpression>
+        </sequenceFlow>
+        <userTask id="adminApprove" name="行政审批" flowable:assignee="${adminOfficerId}"/>
+        <sequenceFlow id="flow3" sourceRef="adminApprove" targetRef="endEvent"/>
+        <userTask id="deptHeadApprove" name="部门主管审批" flowable:assignee="${deptHeadId}"/>
+        <sequenceFlow id="flow4" sourceRef="deptHeadApprove" targetRef="adminApprove2"/>
+        <userTask id="adminApprove2" name="行政审批" flowable:assignee="${adminOfficerId}"/>
+        <sequenceFlow id="flow5" sourceRef="adminApprove2" targetRef="endEvent"/>
+        <endEvent id="endEvent" name="结束"/>
+    </process>
+</definitions>

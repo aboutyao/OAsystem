@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:oa_system}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:root}
+
+flowable:
+  database-schema-update: true
+  async-executor-activate: false
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:oa-system-dev-jwt-secret-must-be-32chars-minimum}
