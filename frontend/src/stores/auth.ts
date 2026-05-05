@@ -67,6 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
     const parents = all.filter((m) => !m.routePath).sort((a, b) => a.sortOrder - b.sortOrder)
     const leaves = all.filter((m) => m.routePath)
 
+    // 1) 构建有父菜单的分组
     const groups: NavGroup[] = parents.map((p) => ({
       id: p.id,
       label: p.menuName,
@@ -77,17 +78,32 @@ export const useAuthStore = defineStore('auth', () => {
         .map((l) => ({ path: l.routePath as string, label: l.menuName })),
     }))
 
-    const orphanLeaves = leaves.filter((l) => !parents.some((p) => p.id === l.parentId))
-    if (orphanLeaves.length > 0) {
-      groups.push({
-        id: -1,
-        label: '其他',
-        icon: 'Menu',
-        children: orphanLeaves.map((l) => ({ path: l.routePath as string, label: l.menuName })),
-      })
-    }
+    // 2) 处理没有父菜单的一级叶子菜单（如工作台、待办等）
+    const orphanLeaves = leaves
+      .filter((l) => !parents.some((p) => p.id === l.parentId))
+      .sort((a, b) => a.sortOrder - b.sortOrder)
 
-    return groups.filter((g) => g.children.length > 0)
+    // 3) 将一级叶子菜单作为独立菜单项插到最前面
+    const topItems: NavGroup[] = orphanLeaves.map((l) => ({
+      id: l.id,
+      label: l.menuName,
+      icon: guessIcon(l.menuCode, l.routePath ?? ''),
+      children: [{ path: l.routePath as string, label: l.menuName }],
+    }))
+
+    // 4) 排除已作为一级菜单的叶子，避免在父分组中重复
+    const orphanIds = new Set(orphanLeaves.map((l) => l.id))
+    const filteredGroups = groups
+      .map((g) => ({
+        ...g,
+        children: g.children.filter((c) => {
+          const leaf = leaves.find((l) => l.routePath === c.path)
+          return !leaf || !orphanIds.has(leaf.id)
+        }),
+      }))
+      .filter((g) => g.children.length > 0)
+
+    return [...topItems, ...filteredGroups]
   })
 
   async function loadMenus() {
