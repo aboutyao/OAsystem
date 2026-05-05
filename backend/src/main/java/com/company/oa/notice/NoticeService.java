@@ -13,6 +13,7 @@ import com.company.oa.entity.notice.OaNotice;
 import com.company.oa.entity.notice.OaNoticeRead;
 import com.company.oa.entity.system.SysConfig;
 import com.company.oa.common.service.SequenceService;
+import com.company.oa.message.MessageService;
 import com.company.oa.notice.mapper.OaNoticeMapper;
 import com.company.oa.notice.mapper.OaNoticeReadMapper;
 import com.company.oa.org.mapper.UserMapper;
@@ -40,11 +41,13 @@ public class NoticeService {
     private final AuthService authService;
     private final AuditService auditService;
     private final SequenceService sequenceService;
+    private final MessageService messageService;
 
     public NoticeService(OaNoticeMapper noticeMapper, OaNoticeReadMapper noticeReadMapper,
                          UserMapper userMapper, SysConfigMapper sysConfigMapper,
                          AuthService authService, AuditService auditService,
-                         SequenceService sequenceService) {
+                         SequenceService sequenceService,
+                         MessageService messageService) {
         this.noticeMapper = noticeMapper;
         this.noticeReadMapper = noticeReadMapper;
         this.userMapper = userMapper;
@@ -52,6 +55,7 @@ public class NoticeService {
         this.authService = authService;
         this.auditService = auditService;
         this.sequenceService = sequenceService;
+        this.messageService = messageService;
     }
 
     @Transactional(readOnly = true)
@@ -160,7 +164,26 @@ public class NoticeService {
                         .setSql("version = version + 1"));
         auditService.safeRecordOperation(authService.currentUser().id(),
                 "NOTICE_PUBLISH", "NOTICE", id, AuditService.SUCCESS, null);
+
+        // 发布后自动给所有激活用户发消息中心通知
+        notifyAllUsers(String.valueOf(row.get("title")), id);
+
         return detail(id);
+    }
+
+    private void notifyAllUsers(String title, long noticeId) {
+        // 查询所有启用的非离职用户
+        List<Long> userIds = userMapper.selectList(
+                new LambdaQueryWrapper<com.company.oa.entity.org.User>()
+                        .eq(com.company.oa.entity.org.User::getAccountStatus, "ENABLED")
+                        .ne(com.company.oa.entity.org.User::getEmployeeStatus, "RESIGNED")
+                        .select(com.company.oa.entity.org.User::getId)
+        ).stream().map(com.company.oa.entity.org.User::getId).toList();
+
+        String msg = "新公告: " + title;
+        for (Long uid : userIds) {
+            messageService.send(uid, "NOTICE", msg, msg, "NOTICE", noticeId, null);
+        }
     }
 
     @Transactional
