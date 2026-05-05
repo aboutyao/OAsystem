@@ -30,7 +30,8 @@ async function load() {
 async function loadUsers() {
   try {
     const res = await listUsers(1, 500)
-    users.value = res.items
+    // 过滤掉已离职的员工，仅展示在职人员作为负责人候选
+    users.value = res.items.filter((u: JsonObject) => String(u.employeeStatus ?? '') !== 'RESIGNED')
   } catch {
     // ignore
   }
