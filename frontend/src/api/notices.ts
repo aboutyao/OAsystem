@@ -1,5 +1,12 @@
 import { http } from './http'
 import type { JsonObject, PageResponse } from './types'
+import { createCrudApi } from './crud'
+
+const crud = createCrudApi('notices')
+
+export const getNotice = crud.get
+export const createNotice = crud.create
+export const updateNotice = crud.update
 
 export function listNotices(page = 1, size = 20, mine?: boolean, status?: string, category?: string) {
   return http.get<unknown, PageResponse<JsonObject>>('/notices', {
@@ -13,25 +20,11 @@ export function listNotices(page = 1, size = 20, mine?: boolean, status?: string
   })
 }
 
-export function getNotice(id: number) {
-  return http.get<unknown, JsonObject>(`/notices/${id}`)
-}
-
-export function createNotice(body: Record<string, unknown>) {
-  return http.post<unknown, JsonObject>('/notices', body)
-}
-
-export function updateNotice(id: number, body: Record<string, unknown>) {
-  return http.put<unknown, JsonObject>(`/notices/${id}`, body)
-}
-
 export function publishNotice(id: number) {
   return http.post<unknown, JsonObject>(`/notices/${id}/publish`)
 }
 
-export function withdrawNotice(id: number) {
-  return http.post<unknown, JsonObject>(`/notices/${id}/withdraw`)
-}
+export const withdrawNotice = crud.withdraw
 
 export function markNoticeRead(id: number) {
   return http.post<unknown, JsonObject>(`/notices/${id}/read`)

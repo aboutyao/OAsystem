@@ -1,33 +1,16 @@
 import { http } from './http'
-import type { JsonObject, PageResponse } from './types'
+import type { JsonObject } from './types'
+import { createCrudApi } from './crud'
 
-export function listExpenses(page = 1, size = 20) {
-  return http.get<unknown, PageResponse<JsonObject>>('/oa/expenses', { params: { page, size } })
-}
+const crud = createCrudApi('oa/expenses')
 
-export function getExpense(id: number) {
-  return http.get<unknown, JsonObject>(`/oa/expenses/${id}`)
-}
-
-export function createExpense(body: Record<string, unknown>) {
-  return http.post<unknown, JsonObject>('/oa/expenses', body)
-}
-
-export function updateExpense(id: number, body: Record<string, unknown>) {
-  return http.put<unknown, JsonObject>(`/oa/expenses/${id}`, body)
-}
-
-export function submitExpense(id: number) {
-  return http.post<unknown, JsonObject>(`/oa/expenses/${id}/submit`)
-}
-
-export function withdrawExpense(id: number) {
-  return http.post<unknown, JsonObject>(`/oa/expenses/${id}/withdraw`)
-}
-
-export function cancelExpense(id: number) {
-  return http.post<unknown, JsonObject>(`/oa/expenses/${id}/cancel`)
-}
+export const listExpenses = crud.list
+export const getExpense = crud.get
+export const createExpense = crud.create
+export const updateExpense = crud.update
+export const submitExpense = crud.submit
+export const withdrawExpense = crud.withdraw
+export const cancelExpense = crud.cancel
 
 export function markPaidExpense(id: number) {
   return http.post<unknown, JsonObject>(`/oa/expenses/${id}/mark-paid`)

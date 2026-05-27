@@ -1,33 +1,16 @@
 import { http } from './http'
-import type { JsonObject, PageResponse } from './types'
+import type { JsonObject } from './types'
+import { createCrudApi } from './crud'
 
-export function listSeals(page = 1, size = 20) {
-  return http.get<unknown, PageResponse<JsonObject>>('/oa/seal-applies', { params: { page, size } })
-}
+const crud = createCrudApi('oa/seal-applies')
 
-export function getSeal(id: number) {
-  return http.get<unknown, JsonObject>(`/oa/seal-applies/${id}`)
-}
-
-export function createSeal(body: Record<string, unknown>) {
-  return http.post<unknown, JsonObject>('/oa/seal-applies', body)
-}
-
-export function updateSeal(id: number, body: Record<string, unknown>) {
-  return http.put<unknown, JsonObject>(`/oa/seal-applies/${id}`, body)
-}
-
-export function submitSeal(id: number) {
-  return http.post<unknown, JsonObject>(`/oa/seal-applies/${id}/submit`)
-}
-
-export function withdrawSeal(id: number) {
-  return http.post<unknown, JsonObject>(`/oa/seal-applies/${id}/withdraw`)
-}
-
-export function cancelSeal(id: number) {
-  return http.post<unknown, JsonObject>(`/oa/seal-applies/${id}/cancel`)
-}
+export const listSeals = crud.list
+export const getSeal = crud.get
+export const createSeal = crud.create
+export const updateSeal = crud.update
+export const submitSeal = crud.submit
+export const withdrawSeal = crud.withdraw
+export const cancelSeal = crud.cancel
 
 export function returnSeal(id: number) {
   return http.post<unknown, JsonObject>(`/oa/seal-applies/${id}/return`)

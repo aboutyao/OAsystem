@@ -229,8 +229,3 @@ async function onSave() {
   </div>
 </template>
 
-<style scoped>
-.oa-mt {
-  margin-top: 10px;
-}
-</style>

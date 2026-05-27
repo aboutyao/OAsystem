@@ -6,12 +6,11 @@ import com.company.oa.auth.AuthService;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.entity.perm.*;
-import com.company.oa.entity.system.SysConfig;
 import com.company.oa.permission.mapper.*;
 import com.company.oa.permission.cache.PermissionCacheService;
-import com.company.oa.system.mapper.SysConfigMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -39,7 +38,7 @@ public class PermissionService {
     private final PermDataScopeDeptMapper permDataScopeDeptMapper;
     private final PermFieldPermissionMapper permFieldPermissionMapper;
     private final PermTempAuthMapper permTempAuthMapper;
-    private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final AuthService authService;
     private final SequenceService sequenceService;
     private final PermissionCacheService cacheService;
@@ -57,7 +56,7 @@ public class PermissionService {
                              PermDataScopeDeptMapper permDataScopeDeptMapper,
                              PermFieldPermissionMapper permFieldPermissionMapper,
                              PermTempAuthMapper permTempAuthMapper,
-                             SysConfigMapper sysConfigMapper,
+                             PaginationHelper paginationHelper,
                              AuthService authService,
                              SequenceService sequenceService,
                              PermissionCacheService cacheService) {
@@ -71,7 +70,7 @@ public class PermissionService {
         this.permDataScopeDeptMapper = permDataScopeDeptMapper;
         this.permFieldPermissionMapper = permFieldPermissionMapper;
         this.permTempAuthMapper = permTempAuthMapper;
-        this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.authService = authService;
         this.sequenceService = sequenceService;
         this.cacheService = cacheService;
@@ -97,7 +96,7 @@ public class PermissionService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listRoles(long page, long size) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         long total = permRoleMapper.selectCount(new LambdaQueryWrapper<PermRole>());
         LambdaQueryWrapper<PermRole> wrapper = new LambdaQueryWrapper<PermRole>()
                 .orderByAsc(PermRole::getSortOrder)
@@ -377,7 +376,7 @@ public class PermissionService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listButtons(long page, long size, Long menuId) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         LambdaQueryWrapper<PermButton> wrapper = new LambdaQueryWrapper<PermButton>()
                 .eq(menuId != null, PermButton::getMenuId, menuId)
                 .orderByAsc(PermButton::getMenuId)
@@ -463,7 +462,7 @@ public class PermissionService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listTempAuths(long page, long size) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         long total = permTempAuthMapper.selectCount(new LambdaQueryWrapper<PermTempAuth>());
         LambdaQueryWrapper<PermTempAuth> wrapper = new LambdaQueryWrapper<PermTempAuth>()
                 .orderByDesc(PermTempAuth::getId);
@@ -515,7 +514,7 @@ public class PermissionService {
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listFieldPermissions(long page, long size,
                                                                    Long roleId, String businessType) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         LambdaQueryWrapper<PermFieldPermission> wrapper = new LambdaQueryWrapper<PermFieldPermission>()
                 .eq(roleId != null, PermFieldPermission::getRoleId, roleId)
                 .eq(StringUtils.hasText(businessType), PermFieldPermission::getBusinessType,
@@ -805,25 +804,4 @@ public class PermissionService {
         return false;
     }
 
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        List<SysConfig> configs = sysConfigMapper.selectList(
-                new LambdaQueryWrapper<SysConfig>()
-                        .eq(SysConfig::getConfigKey, key)
-                        .select(SysConfig::getConfigValue));
-        if (configs.isEmpty()) {
-            return defaultValue;
-        }
-        return Integer.parseInt(configs.get(0).getConfigValue());
-    }
 }

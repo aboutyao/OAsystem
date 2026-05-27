@@ -1,6 +1,8 @@
 package com.company.oa.ops;
 
+import com.company.oa.common.service.OaUtils;
 import com.company.oa.common.api.PageResponse;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
 import com.company.oa.entity.ops.AppExceptionLog;
@@ -27,21 +29,24 @@ public class OpsService {
     private final JobTaskLogMapper jobTaskLogMapper;
     private final AppExceptionLogMapper appExceptionLogMapper;
     private final BackupRecordMapper backupRecordMapper;
+    private final PaginationHelper paginationHelper;
     private final ObjectMapper objectMapper;
 
     public OpsService(JobTaskLogMapper jobTaskLogMapper,
                       AppExceptionLogMapper appExceptionLogMapper,
                       BackupRecordMapper backupRecordMapper,
+                      PaginationHelper paginationHelper,
                       ObjectMapper objectMapper) {
         this.jobTaskLogMapper = jobTaskLogMapper;
         this.appExceptionLogMapper = appExceptionLogMapper;
         this.backupRecordMapper = backupRecordMapper;
+        this.paginationHelper = paginationHelper;
         this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listJobLogs(long page, long size, String jobCode, String status) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         String effectiveJobCode = blankToNull(jobCode);
         String effectiveStatus = blankToNull(status);
         long total = jobTaskLogMapper.countByConditions(effectiveJobCode, effectiveStatus);
@@ -65,15 +70,15 @@ public class OpsService {
         entity.setDurationMs(durationMs);
         entity.setSuccessCount(successCount);
         entity.setFailCount(failCount);
-        entity.setFailReason(truncate(failReason, 2000));
-        entity.setTriggeredBy(truncate(triggeredBy, 64));
+        entity.setFailReason(OaUtils.truncate(failReason, 2000));
+        entity.setTriggeredBy(OaUtils.truncate(triggeredBy, 64));
         jobTaskLogMapper.insert(entity);
         return entity.getId();
     }
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listExceptions(long page, long size, String severity) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         String effectiveSeverity = blankToNull(severity);
         long total = appExceptionLogMapper.countByConditions(effectiveSeverity);
         long offset = (ps[0] - 1) * ps[1];
@@ -88,13 +93,13 @@ public class OpsService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "异常类必填");
         }
         AppExceptionLog entity = new AppExceptionLog();
-        entity.setRequestId(truncate(requestId, 64));
-        entity.setRequestUri(truncate(requestUri, 500));
-        entity.setRequestMethod(truncate(requestMethod, 16));
+        entity.setRequestId(OaUtils.truncate(requestId, 64));
+        entity.setRequestUri(OaUtils.truncate(requestUri, 500));
+        entity.setRequestMethod(OaUtils.truncate(requestMethod, 16));
         entity.setUserId(userId);
-        entity.setExceptionClass(truncate(exceptionClass, 255));
-        entity.setExceptionMessage(truncate(exceptionMessage, 2000));
-        entity.setStackTrace(truncate(stackTrace, 8000));
+        entity.setExceptionClass(OaUtils.truncate(exceptionClass, 255));
+        entity.setExceptionMessage(OaUtils.truncate(exceptionMessage, 2000));
+        entity.setStackTrace(OaUtils.truncate(stackTrace, 8000));
         entity.setSeverity(severity == null ? "ERROR" : severity);
         entity.setOccurredAt(LocalDateTime.now());
         appExceptionLogMapper.insert(entity);
@@ -103,7 +108,7 @@ public class OpsService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listBackupRecords(long page, long size, String backupType, String status) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         String effectiveBackupType = blankToNull(backupType);
         String effectiveStatus = blankToNull(status);
         long total = backupRecordMapper.countByConditions(effectiveBackupType, effectiveStatus);
@@ -121,14 +126,14 @@ public class OpsService {
         }
         BackupRecord entity = new BackupRecord();
         entity.setBackupType(backupType);
-        entity.setBackupPath(truncate(backupPath, 500));
+        entity.setBackupPath(OaUtils.truncate(backupPath, 500));
         entity.setBackupSize(backupSize);
         entity.setStatus(status);
         entity.setStartedAt(startedAt != null ? startedAt.toLocalDateTime() : null);
         entity.setFinishedAt(finishedAt != null ? finishedAt.toLocalDateTime() : null);
         entity.setDurationMs(durationMs);
-        entity.setFailReason(truncate(failReason, 2000));
-        entity.setTriggeredBy(truncate(triggeredBy, 64));
+        entity.setFailReason(OaUtils.truncate(failReason, 2000));
+        entity.setTriggeredBy(OaUtils.truncate(triggeredBy, 64));
         backupRecordMapper.insert(entity);
         return entity.getId();
     }
@@ -138,15 +143,4 @@ public class OpsService {
         return value;
     }
 
-    private static String truncate(String value, int max) {
-        if (value == null) return null;
-        return value.length() <= max ? value : value.substring(0, max);
-    }
-
-    private long[] clampPage(long page, long size) {
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? 20 : size;
-        if (s > 100) s = 100;
-        return new long[]{p, s};
-    }
 }

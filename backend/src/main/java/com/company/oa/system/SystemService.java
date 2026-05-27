@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.entity.system.SysConfig;
 import com.company.oa.entity.system.SysDictItem;
@@ -32,18 +33,21 @@ public class SystemService {
     private final SysDictItemMapper dictItemMapper;
     private final SequenceService sequenceService;
     private final SystemCacheService cacheService;
+    private final PaginationHelper paginationHelper;
     private final ObjectMapper objectMapper;
 
     public SystemService(SysConfigMapper configMapper,
                          SysDictTypeMapper dictTypeMapper,
                          SysDictItemMapper dictItemMapper,
                          SequenceService sequenceService,
-                         SystemCacheService cacheService) {
+                         SystemCacheService cacheService,
+                         PaginationHelper paginationHelper) {
         this.configMapper = configMapper;
         this.dictTypeMapper = dictTypeMapper;
         this.dictItemMapper = dictItemMapper;
         this.sequenceService = sequenceService;
         this.cacheService = cacheService;
+        this.paginationHelper = paginationHelper;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
         this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -56,7 +60,7 @@ public class SystemService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> dictTypes(long page, long size) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         Page<SysDictType> pageObj = new Page<>(ps[0], ps[1]);
         dictTypeMapper.selectPage(pageObj, new LambdaQueryWrapper<SysDictType>()
                 .orderByAsc(SysDictType::getId));
@@ -89,7 +93,7 @@ public class SystemService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> configs(long page, long size) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         Page<SysConfig> pageObj = new Page<>(ps[0], ps[1]);
         configMapper.selectPage(pageObj, new LambdaQueryWrapper<SysConfig>()
                 .orderByAsc(SysConfig::getConfigGroup)
@@ -248,30 +252,4 @@ public class SystemService {
         return toMap(item);
     }
 
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        String cached = cacheService.getConfigValue(key);
-        if (cached != null) {
-            try { return Integer.parseInt(cached); } catch (NumberFormatException ignored) {}
-        }
-        SysConfig config = configMapper.selectOne(
-                new LambdaQueryWrapper<SysConfig>()
-                        .select(SysConfig::getConfigValue)
-                        .eq(SysConfig::getConfigKey, key));
-        if (config == null || config.getConfigValue() == null) {
-            return defaultValue;
-        }
-        cacheService.setConfigValue(key, config.getConfigValue());
-        return Integer.parseInt(config.getConfigValue());
-    }
 }

@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { listLeaves } from '../../../api/oa-leaves'
 import type { JsonObject } from '../../../api/types'
+import { usePaginatedList } from '../../../composables/usePaginatedList'
 import { formatDisplayDateTime, OA_STATUS_LABEL, statusLabel } from '../oa-shared'
 
 const router = useRouter()
-const loading = ref(false)
-const rows = ref<JsonObject[]>([])
-const total = ref(0)
-const page = ref(1)
-const size = ref(20)
+const { loading, rows, total, page, size, load, handleSizeChange } = usePaginatedList<JsonObject>(listLeaves)
 
 const statusFilter = ref('')
 const keyword = ref('')
@@ -43,25 +39,7 @@ const filteredRows = computed(() => {
   return list
 })
 
-async function load() {
-  loading.value = true
-  try {
-    const res = await listLeaves(page.value, size.value)
-    rows.value = res.items
-    total.value = Number(res.total)
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '加载失败')
-  } finally {
-    loading.value = false
-  }
-}
-
 onMounted(load)
-
-function handleSizeChange() {
-  page.value = 1
-  load()
-}
 
 function goCreate() {
   router.push('/oa/leaves/create')

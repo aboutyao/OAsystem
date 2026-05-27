@@ -6,9 +6,9 @@ import com.company.oa.audit.mapper.AuditOperationLogMapper;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.entity.audit.AuditLoginLog;
 import com.company.oa.entity.audit.AuditOperationLog;
-import com.company.oa.entity.system.SysConfig;
+import com.company.oa.common.service.OaUtils;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
-import com.company.oa.system.mapper.SysConfigMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,16 +26,16 @@ public class AuditService {
 
     private final AuditLoginLogMapper loginLogMapper;
     private final AuditOperationLogMapper operationLogMapper;
-    private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final SequenceService sequenceService;
 
     public AuditService(AuditLoginLogMapper loginLogMapper,
                         AuditOperationLogMapper operationLogMapper,
-                        SysConfigMapper sysConfigMapper,
+                        PaginationHelper paginationHelper,
                         SequenceService sequenceService) {
         this.loginLogMapper = loginLogMapper;
         this.operationLogMapper = operationLogMapper;
-        this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.sequenceService = sequenceService;
     }
 
@@ -45,8 +45,8 @@ public class AuditService {
         entity.setId(sequenceService.nextId("audit_login_log"));
         entity.setUserId(userId);
         entity.setUsername(username);
-        entity.setIpAddress(truncate(ip, 64));
-        entity.setUserAgent(truncate(userAgent, 500));
+        entity.setIpAddress(OaUtils.truncate(ip, 64));
+        entity.setUserAgent(OaUtils.truncate(userAgent, 500));
         entity.setLoginResult(SUCCESS);
         entity.setFailReason(null);
         entity.setLoggedAt(LocalDateTime.now());
@@ -59,10 +59,10 @@ public class AuditService {
         entity.setId(sequenceService.nextId("audit_login_log"));
         entity.setUserId(null);
         entity.setUsername(username);
-        entity.setIpAddress(truncate(ip, 64));
-        entity.setUserAgent(truncate(userAgent, 500));
+        entity.setIpAddress(OaUtils.truncate(ip, 64));
+        entity.setUserAgent(OaUtils.truncate(userAgent, 500));
         entity.setLoginResult(FAILED);
-        entity.setFailReason(truncate(reason, 500));
+        entity.setFailReason(OaUtils.truncate(reason, 500));
         entity.setLoggedAt(LocalDateTime.now());
         loginLogMapper.insert(entity);
     }
@@ -102,24 +102,24 @@ public class AuditService {
     ) {
         AuditOperationLog entity = new AuditOperationLog();
         entity.setId(sequenceService.nextId("audit_operation_log"));
-        entity.setRequestId(truncate(requestId, 64));
+        entity.setRequestId(OaUtils.truncate(requestId, 64));
         entity.setOperatorId(operatorId);
-        entity.setOperationType(truncate(operationType, 64));
-        entity.setBusinessType(truncate(businessType, 64));
+        entity.setOperationType(OaUtils.truncate(operationType, 64));
+        entity.setBusinessType(OaUtils.truncate(businessType, 64));
         entity.setBusinessId(businessId);
-        entity.setRequestMethod(truncate(requestMethod, 16));
-        entity.setRequestUri(truncate(requestUri, 500));
+        entity.setRequestMethod(OaUtils.truncate(requestMethod, 16));
+        entity.setRequestUri(OaUtils.truncate(requestUri, 500));
         entity.setRequestParams(requestParams);
         entity.setResult(result == null ? FAILED : result);
-        entity.setErrorMessage(truncate(errorMessage, 1000));
-        entity.setIpAddress(truncate(ip, 64));
+        entity.setErrorMessage(OaUtils.truncate(errorMessage, 1000));
+        entity.setIpAddress(OaUtils.truncate(ip, 64));
         entity.setOperatedAt(LocalDateTime.now());
         operationLogMapper.insert(entity);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listLoginLogs(long page, long size, String username, String result) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
 
         LambdaQueryWrapper<AuditLoginLog> wrapper = new LambdaQueryWrapper<>();
         if (username != null && !username.isBlank()) {
@@ -146,7 +146,7 @@ public class AuditService {
     public PageResponse<Map<String, Object>> listOperationLogs(
             long page, long size, String businessType, String result, Long operatorId
     ) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
 
         LambdaQueryWrapper<AuditOperationLog> wrapper = new LambdaQueryWrapper<>();
         if (businessType != null && !businessType.isBlank()) {
@@ -201,28 +201,4 @@ public class AuditService {
         return map;
     }
 
-    private static String truncate(String value, int max) {
-        if (value == null) return null;
-        return value.length() <= max ? value : value.substring(0, max);
-    }
-
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        SysConfig config = sysConfigMapper.selectOne(
-                new LambdaQueryWrapper<SysConfig>().eq(SysConfig::getConfigKey, key));
-        if (config == null || config.getConfigValue() == null) {
-            return defaultValue;
-        }
-        return Integer.parseInt(config.getConfigValue());
-    }
 }

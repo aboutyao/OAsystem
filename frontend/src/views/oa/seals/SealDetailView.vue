@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { cancelSeal, getSeal, returnSeal, submitSeal, withdrawSeal } from '../../../api/oa-seals'
 import type { JsonObject } from '../../../api/types'
+import { useOaActions } from '../../../composables/useOaActions'
 import { formatDisplayDateTime, statusLabel } from '../oa-shared'
 
 const route = useRoute()
@@ -37,42 +38,15 @@ async function reload() {
   }
 }
 
+const { onSubmit, onWithdraw, onCancel } = useOaActions(reload)
+
 function goEdit() {
   router.push(`/oa/seals/${id.value}/edit`)
 }
 
-async function onSubmit() {
-  try {
-    await ElMessageBox.confirm('确认提交用章申请？', '提交', { type: 'warning' })
-    await submitSeal(id.value)
-    ElMessage.success('已提交')
-    await reload()
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e instanceof Error ? e.message : '提交失败')
-  }
-}
-
-async function onWithdraw() {
-  try {
-    await ElMessageBox.confirm('确认撤回？', '撤回', { type: 'warning' })
-    await withdrawSeal(id.value)
-    ElMessage.success('已撤回')
-    await reload()
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e instanceof Error ? e.message : '撤回失败')
-  }
-}
-
-async function onCancel() {
-  try {
-    await ElMessageBox.confirm('确认作废？', '作废', { type: 'warning' })
-    await cancelSeal(id.value)
-    ElMessage.success('已作废')
-    await reload()
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e instanceof Error ? e.message : '操作失败')
-  }
-}
+function handleSubmit() { onSubmit(() => submitSeal(id.value)) }
+function handleWithdraw() { onWithdraw(() => withdrawSeal(id.value)) }
+function handleCancel() { onCancel(() => cancelSeal(id.value)) }
 
 async function onReturn() {
   try {
@@ -96,9 +70,9 @@ async function onReturn() {
       <div class="oa-page__actions">
         <el-button @click="router.push('/oa/seals')">返回列表</el-button>
         <el-button v-if="status === 'DRAFT'" type="primary" @click="goEdit">编辑</el-button>
-        <el-button v-if="status === 'DRAFT'" type="success" @click="onSubmit">提交审批</el-button>
-        <el-button v-if="status === 'APPROVING'" @click="onWithdraw">撤回</el-button>
-        <el-button v-if="status === 'DRAFT' || status === 'APPROVING'" type="danger" plain @click="onCancel">作废</el-button>
+        <el-button v-if="status === 'DRAFT'" type="success" @click="handleSubmit">提交审批</el-button>
+        <el-button v-if="status === 'APPROVING'" @click="handleWithdraw">撤回</el-button>
+        <el-button v-if="status === 'DRAFT' || status === 'APPROVING'" type="danger" plain @click="handleCancel">作废</el-button>
         <el-button v-if="canReturn" type="warning" @click="onReturn">登记归还</el-button>
       </div>
     </div>

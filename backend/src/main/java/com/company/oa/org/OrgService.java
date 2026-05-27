@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.entity.org.Dept;
 import com.company.oa.entity.org.Position;
@@ -59,6 +60,7 @@ public class OrgService {
     private final PermUserRoleMapper permUserRoleMapper;
     private final PermRoleMapper permRoleMapper;
     private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final PasswordEncoder passwordEncoder;
     private final SequenceService sequenceService;
     private final ObjectMapper objectMapper;
@@ -66,7 +68,8 @@ public class OrgService {
     public OrgService(UserMapper userMapper, DeptMapper deptMapper, PositionMapper positionMapper,
                       RankMapper rankMapper, UserDeptMapper userDeptMapper, ChangeLogMapper changeLogMapper,
                       PermUserRoleMapper permUserRoleMapper, PermRoleMapper permRoleMapper,
-                      SysConfigMapper sysConfigMapper, PasswordEncoder passwordEncoder,
+                      SysConfigMapper sysConfigMapper, PaginationHelper paginationHelper,
+                      PasswordEncoder passwordEncoder,
                       SequenceService sequenceService, ObjectMapper objectMapper) {
         this.userMapper = userMapper;
         this.deptMapper = deptMapper;
@@ -77,6 +80,7 @@ public class OrgService {
         this.permUserRoleMapper = permUserRoleMapper;
         this.permRoleMapper = permRoleMapper;
         this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.passwordEncoder = passwordEncoder;
         this.sequenceService = sequenceService;
         this.objectMapper = objectMapper;
@@ -223,7 +227,7 @@ public class OrgService {
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> deptUsers(long deptId, long page, long size) {
         deptDetail(deptId);
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         long total = userMapper.selectCount(
                 new LambdaQueryWrapper<User>()
                         .eq(User::getDeleted, 0)
@@ -237,7 +241,7 @@ public class OrgService {
     public PageResponse<Map<String, Object>> listUsers(long page, long size, String keyword,
                                                        Long mainDeptId, String employeeStatus,
                                                        String accountStatus) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         String kw = StringUtils.hasText(keyword) ? "%" + keyword.trim() + "%" : null;
 
         // Build count query with optional filters
@@ -694,25 +698,6 @@ public class OrgService {
         return "ChangeMe123!";
     }
 
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        String value = sysConfigMapper.selectValueByKey(key);
-        if (value == null || value.isBlank()) {
-            return defaultValue;
-        }
-        return Integer.parseInt(value.trim());
-    }
-
     private boolean deptExists(long id) {
         Long n = deptMapper.selectCount(
                 new LambdaQueryWrapper<Dept>().eq(Dept::getId, id));
@@ -779,7 +764,7 @@ public class OrgService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listChangeLogs(long page, long size, String targetType, String changeType) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         String tt = StringUtils.hasText(targetType) ? targetType.trim() : null;
         String ct = StringUtils.hasText(changeType) ? changeType.trim() : null;
         long total = changeLogMapper.selectChangeLogCount(tt, ct);

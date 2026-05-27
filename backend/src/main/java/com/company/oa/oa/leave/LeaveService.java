@@ -7,11 +7,14 @@ import com.company.oa.auth.AuthUser;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
+import com.company.oa.common.service.OaSnapshotUtils;
+import com.company.oa.common.service.OaUtils;
+import com.company.oa.common.service.OaPermissionUtils;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
+import com.company.oa.org.mapper.UserMapper;
 import com.company.oa.entity.oa.OaLeave;
-import com.company.oa.entity.system.SysConfig;
 import com.company.oa.oa.mapper.OaLeaveMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
 import com.company.oa.workflow.WorkflowDtos;
 import com.company.oa.system.WorkCalendarService;
 import com.company.oa.workflow.WorkflowService;
@@ -32,30 +35,32 @@ public class LeaveService {
     private static final String CANCELLED = "CANCELLED";
 
     private final OaLeaveMapper oaLeaveMapper;
-    private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final AuthService authService;
     private final WorkflowService workflowService;
     private final AuditService auditService;
     private final WorkCalendarService workCalendarService;
     private final SequenceService sequenceService;
+    private final UserMapper userMapper;
 
-    public LeaveService(OaLeaveMapper oaLeaveMapper, SysConfigMapper sysConfigMapper,
+    public LeaveService(OaLeaveMapper oaLeaveMapper, PaginationHelper paginationHelper,
                         AuthService authService, WorkflowService workflowService,
                         AuditService auditService, WorkCalendarService workCalendarService,
-                        SequenceService sequenceService) {
+                        SequenceService sequenceService, UserMapper userMapper) {
         this.oaLeaveMapper = oaLeaveMapper;
-        this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.authService = authService;
         this.workflowService = workflowService;
         this.auditService = auditService;
         this.workCalendarService = workCalendarService;
         this.sequenceService = sequenceService;
+        this.userMapper = userMapper;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> list(long page, long size, Long applicantId) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         LambdaQueryWrapper<OaLeave> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(OaLeave::getDeleted, 0);
         if (applicantId != null) {
@@ -80,7 +85,7 @@ public class LeaveService {
     @Transactional(readOnly = true)
     public Map<String, Object> detail(long id) {
         Map<String, Object> row = loadLeave(id);
-        assertViewAllowed(row);
+        OaPermissionUtils.assertViewAllowed(row, authService, "此记录");
         return row;
     }
 
@@ -88,7 +93,7 @@ public class LeaveService {
     public Map<String, Object> create(LeaveDtos.LeaveCreateRequest req) {
         AuthUser user = authService.currentUser();
         long newId = sequenceService.nextId("oa_leave");
-        Map<String, String> snap = loadUserDeptSnapshot(user.id());
+        Map<String, String> snap = OaSnapshotUtils.loadUserDeptSnapshot(user.id(), userMapper);
         OaLeave entity = new OaLeave();
         entity.setId(newId);
         entity.setLeaveType(req.leaveType());
@@ -113,7 +118,7 @@ public class LeaveService {
     @Transactional
     public Map<String, Object> update(long id, LeaveDtos.LeaveUpdateRequest req) {
         Map<String, Object> row = loadLeave(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可编辑");
         }
@@ -134,7 +139,7 @@ public class LeaveService {
     @Transactional
     public Map<String, Object> submit(long id) {
         Map<String, Object> row = loadLeave(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可提交");
         }
@@ -148,7 +153,7 @@ public class LeaveService {
         OaLeave entity = new OaLeave();
         entity.setStatus(APPROVING);
         entity.setProcessInstanceId((String) wf.get("processInstanceId"));
-        entity.setWfInstanceId(toLong(wf.get("wfInstanceId")));
+        entity.setWfInstanceId(OaUtils.toLong(wf.get("wfInstanceId")));
         entity.setUpdatedAt(LocalDateTime.now());
         oaLeaveMapper.update(entity, new LambdaQueryWrapper<OaLeave>()
                 .eq(OaLeave::getId, id)
@@ -163,7 +168,7 @@ public class LeaveService {
     @Transactional
     public Map<String, Object> withdrawLeave(long id) {
         Map<String, Object> row = loadLeave(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!APPROVING.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅审批中可撤回");
         }
@@ -182,7 +187,7 @@ public class LeaveService {
     @Transactional
     public Map<String, Object> cancelLeave(long id) {
         Map<String, Object> row = loadLeave(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         String st = String.valueOf(row.get("status"));
         if (!DRAFT.equals(st) && !APPROVING.equals(st)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可作废");
@@ -228,34 +233,7 @@ public class LeaveService {
         return entityToMap(entity);
     }
 
-    private void assertOwner(Map<String, Object> row) {
-        AuthUser user = authService.currentUser();
-        long owner = ((Number) row.get("createdBy")).longValue();
-        if (!user.permissions().contains("*") && !user.id().equals(owner)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此请假单");
-        }
-    }
 
-    private void assertViewAllowed(Map<String, Object> row) {
-        assertOwner(row);
-    }
-
-    private Map<String, String> loadUserDeptSnapshot(long userId) {
-        Map<String, Object> r = oaLeaveMapper.selectUserDeptSnapshot(userId);
-        Map<String, String> m = new LinkedHashMap<>();
-        if (r == null || r.isEmpty()) {
-            m.put("deptId", "");
-            m.put("deptName", "");
-            return m;
-        }
-        m.put("deptName", r.get("deptName") == null ? "" : String.valueOf(r.get("deptName")));
-        if (r.get("deptId") != null) {
-            m.put("deptId", String.valueOf(((Number) r.get("deptId")).longValue()));
-        } else {
-            m.put("deptId", "");
-        }
-        return m;
-    }
 
     private Map<String, Object> entityToMap(OaLeave entity) {
         LinkedHashMap<String, Object> map = new LinkedHashMap<>();
@@ -281,28 +259,4 @@ public class LeaveService {
         return map;
     }
 
-    private Long toLong(Object value) {
-        if (value == null) return null;
-        return ((Number) value).longValue();
-    }
-
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        SysConfig config = sysConfigMapper.selectOne(
-                new LambdaQueryWrapper<SysConfig>().eq(SysConfig::getConfigKey, key));
-        if (config == null || config.getConfigValue() == null) {
-            return defaultValue;
-        }
-        return Integer.parseInt(config.getConfigValue());
-    }
 }

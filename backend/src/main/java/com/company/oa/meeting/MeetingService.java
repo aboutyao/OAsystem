@@ -5,13 +5,12 @@ import com.company.oa.auth.AuthUser;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.entity.meeting.MeetingBooking;
 import com.company.oa.entity.meeting.MeetingRoom;
-import com.company.oa.entity.system.SysConfig;
 import com.company.oa.meeting.mapper.MeetingBookingMapper;
 import com.company.oa.meeting.mapper.MeetingRoomMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,7 +32,7 @@ public class MeetingService {
 
     private final MeetingRoomMapper roomMapper;
     private final MeetingBookingMapper bookingMapper;
-    private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final AuthService authService;
     private final SequenceService sequenceService;
     private final ObjectMapper objectMapper;
@@ -41,14 +40,14 @@ public class MeetingService {
     public MeetingService(
             MeetingRoomMapper roomMapper,
             MeetingBookingMapper bookingMapper,
-            SysConfigMapper sysConfigMapper,
+            PaginationHelper paginationHelper,
             AuthService authService,
             SequenceService sequenceService,
             ObjectMapper objectMapper
     ) {
         this.roomMapper = roomMapper;
         this.bookingMapper = bookingMapper;
-        this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.authService = authService;
         this.sequenceService = sequenceService;
         this.objectMapper = objectMapper;
@@ -56,7 +55,7 @@ public class MeetingService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listRooms(long page, long size) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         LambdaQueryWrapper<MeetingRoom> qw = new LambdaQueryWrapper<>();
         long total = roomMapper.selectCount(qw);
         qw.select(MeetingRoom::getId, MeetingRoom::getRoomName, MeetingRoom::getLocation, MeetingRoom::getCapacity,
@@ -116,7 +115,7 @@ public class MeetingService {
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listBookings(long page, long size, Long roomId) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         Long organizerId = null;
         if (!user.permissions().contains("*")) {
             organizerId = user.id();
@@ -236,27 +235,6 @@ public class MeetingService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "预约不存在");
         }
         return new LinkedHashMap<>(row);
-    }
-
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        LambdaQueryWrapper<SysConfig> qw = new LambdaQueryWrapper<>();
-        qw.select(SysConfig::getConfigValue).eq(SysConfig::getConfigKey, key);
-        List<SysConfig> configs = sysConfigMapper.selectList(qw);
-        if (configs.isEmpty()) {
-            return defaultValue;
-        }
-        return Integer.parseInt(configs.get(0).getConfigValue());
     }
 
     @SuppressWarnings("unchecked")

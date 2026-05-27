@@ -9,11 +9,10 @@ import com.company.oa.auth.AuthUser;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.entity.asset.AssetSupply;
 import com.company.oa.entity.asset.AssetSupplyRecord;
-import com.company.oa.system.mapper.SysConfigMapper;
-import com.company.oa.entity.system.SysConfig;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,22 +34,22 @@ public class SupplyService {
 
     private final AssetSupplyMapper assetSupplyMapper;
     private final AssetSupplyRecordMapper assetSupplyRecordMapper;
-    private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final AuthService authService;
     private final SequenceService sequenceService;
 
     public SupplyService(AssetSupplyMapper assetSupplyMapper, AssetSupplyRecordMapper assetSupplyRecordMapper,
-                         SysConfigMapper sysConfigMapper, AuthService authService, SequenceService sequenceService) {
+                         PaginationHelper paginationHelper, AuthService authService, SequenceService sequenceService) {
         this.assetSupplyMapper = assetSupplyMapper;
         this.assetSupplyRecordMapper = assetSupplyRecordMapper;
-        this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.authService = authService;
         this.sequenceService = sequenceService;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> list(long page, long size, String category, String status, String keyword) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         LambdaQueryWrapper<AssetSupply> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AssetSupply::getDeleted, 0);
         if (category != null && !category.isBlank()) {
@@ -230,23 +229,4 @@ public class SupplyService {
         return map;
     }
 
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        SysConfig config = sysConfigMapper.selectOne(
-                new LambdaQueryWrapper<SysConfig>().eq(SysConfig::getConfigKey, key));
-        if (config == null || config.getConfigValue() == null) {
-            return defaultValue;
-        }
-        return Integer.parseInt(config.getConfigValue());
-    }
 }

@@ -9,11 +9,11 @@ import com.company.oa.auth.AuthUser;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
+import com.company.oa.common.service.OaUtils;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.entity.asset.AssetInfo;
 import com.company.oa.entity.asset.AssetRecord;
-import com.company.oa.system.mapper.SysConfigMapper;
-import com.company.oa.entity.system.SysConfig;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,17 +38,17 @@ public class AssetService {
 
     private final AssetInfoMapper assetInfoMapper;
     private final AssetRecordMapper assetRecordMapper;
-    private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final AuthService authService;
     private final AuditService auditService;
     private final SequenceService sequenceService;
 
     public AssetService(AssetInfoMapper assetInfoMapper, AssetRecordMapper assetRecordMapper,
-                        SysConfigMapper sysConfigMapper, AuthService authService,
+                        PaginationHelper paginationHelper, AuthService authService,
                         AuditService auditService, SequenceService sequenceService) {
         this.assetInfoMapper = assetInfoMapper;
         this.assetRecordMapper = assetRecordMapper;
-        this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.authService = authService;
         this.auditService = auditService;
         this.sequenceService = sequenceService;
@@ -64,7 +64,7 @@ public class AssetService {
             String keyword
     ) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         // COUNT 查询：使用 eq(deleted) 在无别名的 BaseMapper 中工作
         LambdaQueryWrapper<AssetInfo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AssetInfo::getDeleted, 0);
@@ -173,7 +173,7 @@ public class AssetService {
     public Map<String, Object> returnAsset(long id, AssetDtos.AssetReasonRequest req) {
         Map<String, Object> asset = loadAsset(id);
         assertStatus(asset, Set.of(IN_USE, REPAIRING), "仅在用/维修资产可归还");
-        Long from = numberOrNull(asset.get("responsibleUserId"));
+        Long from = OaUtils.toLong(asset.get("responsibleUserId"));
         AssetInfo entity = new AssetInfo();
         entity.setStatus(IDLE);
         entity.setResponsibleUserId(null);
@@ -189,7 +189,7 @@ public class AssetService {
     public Map<String, Object> repair(long id, AssetDtos.AssetReasonRequest req) {
         Map<String, Object> asset = loadAsset(id);
         assertStatus(asset, Set.of(IDLE, IN_USE), "仅闲置/在用资产可送修");
-        Long current = numberOrNull(asset.get("responsibleUserId"));
+        Long current = OaUtils.toLong(asset.get("responsibleUserId"));
         AssetInfo entity = new AssetInfo();
         entity.setStatus(REPAIRING);
         entity.setUpdatedAt(LocalDateTime.now());
@@ -204,7 +204,7 @@ public class AssetService {
         if (SCRAPPED.equals(String.valueOf(asset.get("status")))) {
             throw new BusinessException(ErrorCode.CONFLICT, "资产已报废");
         }
-        Long current = numberOrNull(asset.get("responsibleUserId"));
+        Long current = OaUtils.toLong(asset.get("responsibleUserId"));
         AssetInfo entity = new AssetInfo();
         entity.setStatus(SCRAPPED);
         entity.setResponsibleUserId(null);
@@ -251,30 +251,4 @@ public class AssetService {
         }
     }
 
-    private Long numberOrNull(Object value) {
-        if (value == null) {
-            return null;
-        }
-        return ((Number) value).longValue();
-    }
-
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        SysConfig config = sysConfigMapper.selectOne(
-                new LambdaQueryWrapper<SysConfig>().eq(SysConfig::getConfigKey, key));
-        if (config == null || config.getConfigValue() == null) {
-            return defaultValue;
-        }
-        return Integer.parseInt(config.getConfigValue());
-    }
 }

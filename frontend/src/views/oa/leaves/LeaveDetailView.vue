@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { cancelLeave, getLeave, submitLeave, withdrawLeave } from '../../../api/oa-leaves'
 import { instanceTimeline } from '../../../api/workflow'
 import type { JsonObject } from '../../../api/types'
+import { useOaActions } from '../../../composables/useOaActions'
 import { formatDisplayDateTime, statusLabel } from '../oa-shared'
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
@@ -66,42 +67,15 @@ async function reload() {
   }
 }
 
+const { onSubmit, onWithdraw, onCancel } = useOaActions(reload)
+
 function goEdit() {
   router.push(`/oa/leaves/${id.value}/edit`)
 }
 
-async function onSubmit() {
-  try {
-    await ElMessageBox.confirm('确认提交该请假单进入审批？', '提交', { type: 'warning' })
-    await submitLeave(id.value)
-    ElMessage.success('已提交')
-    await reload()
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e instanceof Error ? e.message : '提交失败')
-  }
-}
-
-async function onWithdraw() {
-  try {
-    await ElMessageBox.confirm('确认撤回？', '撤回', { type: 'warning' })
-    await withdrawLeave(id.value)
-    ElMessage.success('已撤回')
-    await reload()
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e instanceof Error ? e.message : '撤回失败')
-  }
-}
-
-async function onCancel() {
-  try {
-    await ElMessageBox.confirm('确认作废该请假单？', '作废', { type: 'warning' })
-    await cancelLeave(id.value)
-    ElMessage.success('已作废')
-    await reload()
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e instanceof Error ? e.message : '操作失败')
-  }
-}
+function handleSubmit() { onSubmit(() => submitLeave(id.value)) }
+function handleWithdraw() { onWithdraw(() => withdrawLeave(id.value)) }
+function handleCancel() { onCancel(() => cancelLeave(id.value)) }
 
 function actionIcon(action: string): string {
   switch (action) {
@@ -182,9 +156,9 @@ const activeStep = computed(() => {
           <el-icon><ArrowLeft /></el-icon>返回列表
         </el-button>
         <el-button v-if="status === 'DRAFT'" type="primary" @click="goEdit">编辑</el-button>
-        <el-button v-if="status === 'DRAFT'" type="success" @click="onSubmit">提交审批</el-button>
-        <el-button v-if="status === 'APPROVING'" @click="onWithdraw">撤回</el-button>
-        <el-button v-if="status === 'DRAFT' || status === 'APPROVING'" type="danger" plain @click="onCancel">作废</el-button>
+        <el-button v-if="status === 'DRAFT'" type="success" @click="handleSubmit">提交审批</el-button>
+        <el-button v-if="status === 'APPROVING'" @click="handleWithdraw">撤回</el-button>
+        <el-button v-if="status === 'DRAFT' || status === 'APPROVING'" type="danger" plain @click="handleCancel">作废</el-button>
       </div>
     </div>
 

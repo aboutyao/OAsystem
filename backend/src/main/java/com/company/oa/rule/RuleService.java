@@ -7,17 +7,16 @@ import com.company.oa.auth.AuthUser;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.entity.rule.RuleAuditLog;
 import com.company.oa.entity.rule.RuleDefinition;
 import com.company.oa.entity.rule.RuleGroup;
 import com.company.oa.entity.rule.RuleVersion;
-import com.company.oa.entity.system.SysConfig;
 import com.company.oa.rule.mapper.RuleAuditLogMapper;
 import com.company.oa.rule.mapper.RuleDefinitionMapper;
 import com.company.oa.rule.mapper.RuleGroupMapper;
 import com.company.oa.rule.mapper.RuleVersionMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -41,20 +40,20 @@ public class RuleService {
     private final RuleDefinitionMapper ruleDefinitionMapper;
     private final RuleVersionMapper ruleVersionMapper;
     private final RuleAuditLogMapper ruleAuditLogMapper;
-    private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final AuthService authService;
     private final ObjectMapper objectMapper;
     private final SequenceService sequenceService;
 
     public RuleService(RuleGroupMapper ruleGroupMapper, RuleDefinitionMapper ruleDefinitionMapper,
                        RuleVersionMapper ruleVersionMapper, RuleAuditLogMapper ruleAuditLogMapper,
-                       SysConfigMapper sysConfigMapper, AuthService authService,
+                       PaginationHelper paginationHelper, AuthService authService,
                        ObjectMapper objectMapper, SequenceService sequenceService) {
         this.ruleGroupMapper = ruleGroupMapper;
         this.ruleDefinitionMapper = ruleDefinitionMapper;
         this.ruleVersionMapper = ruleVersionMapper;
         this.ruleAuditLogMapper = ruleAuditLogMapper;
-        this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.authService = authService;
         this.objectMapper = objectMapper;
         this.sequenceService = sequenceService;
@@ -126,7 +125,7 @@ public class RuleService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listRules(long page, long size) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         long total = Objects.requireNonNullElse(ruleDefinitionMapper.countRules(), 0L);
         List<Map<String, Object>> items = ruleDefinitionMapper.selectRules(ps[1], (ps[0] - 1) * ps[1]);
         return new PageResponse<>(ps[0], ps[1], total, items);
@@ -335,23 +334,4 @@ public class RuleService {
         ruleAuditLogMapper.insert(entity);
     }
 
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        SysConfig config = sysConfigMapper.selectOne(
-                new LambdaQueryWrapper<SysConfig>().eq(SysConfig::getConfigKey, key));
-        if (config == null || config.getConfigValue() == null) {
-            return defaultValue;
-        }
-        return Integer.parseInt(config.getConfigValue());
-    }
 }

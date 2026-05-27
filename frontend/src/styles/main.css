@@ -141,6 +141,10 @@ body {
   text-transform: uppercase;
 }
 
+.oa-mt {
+  margin-top: 10px;
+}
+
 /* ============================================================
    App Shell Layout
    ============================================================ */
@@ -667,6 +671,22 @@ body {
   margin-top: 6px;
   font-size: 13px;
   color: var(--oa-text-secondary);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric__label {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.metric__value {
+  font-size: 28px;
+  font-weight: 600;
+  margin-top: 4px;
 }
 
 /* ============================================================

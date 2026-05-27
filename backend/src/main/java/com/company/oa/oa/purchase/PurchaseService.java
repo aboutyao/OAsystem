@@ -4,18 +4,20 @@ import com.company.oa.audit.AuditService;
 import com.company.oa.auth.AuthService;
 import com.company.oa.auth.AuthUser;
 import com.company.oa.common.api.PageResponse;
+import com.company.oa.common.service.OaSnapshotUtils;
+import com.company.oa.common.service.OaUtils;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
 import com.company.oa.entity.oa.OaPurchase;
 import com.company.oa.entity.oa.OaPurchaseItem;
-import com.company.oa.entity.system.SysConfig;
 import com.company.oa.oa.mapper.OaPurchaseItemMapper;
 import com.company.oa.oa.mapper.OaPurchaseMapper;
 import com.company.oa.org.mapper.UserMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
 import com.company.oa.workflow.WorkflowDtos;
 import com.company.oa.workflow.WorkflowService;
 import com.company.oa.common.service.SequenceService;
+import com.company.oa.common.service.OaPermissionUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,7 +44,7 @@ public class PurchaseService {
 
     private final OaPurchaseMapper purchaseMapper;
     private final OaPurchaseItemMapper purchaseItemMapper;
-    private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final UserMapper userMapper;
     private final AuthService authService;
     private final WorkflowService workflowService;
@@ -53,7 +55,7 @@ public class PurchaseService {
     public PurchaseService(
             OaPurchaseMapper purchaseMapper,
             OaPurchaseItemMapper purchaseItemMapper,
-            SysConfigMapper sysConfigMapper,
+            PaginationHelper paginationHelper,
             UserMapper userMapper,
             AuthService authService,
             WorkflowService workflowService,
@@ -63,7 +65,7 @@ public class PurchaseService {
     ) {
         this.purchaseMapper = purchaseMapper;
         this.purchaseItemMapper = purchaseItemMapper;
-        this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.userMapper = userMapper;
         this.authService = authService;
         this.workflowService = workflowService;
@@ -75,7 +77,7 @@ public class PurchaseService {
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> list(long page, long size, Long applicantId, String status) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         LambdaQueryWrapper<OaPurchase> qw = new LambdaQueryWrapper<>();
         if (applicantId != null) {
             if (!user.permissions().contains("*") && !user.id().equals(applicantId)) {
@@ -106,7 +108,7 @@ public class PurchaseService {
     @Transactional(readOnly = true)
     public Map<String, Object> detail(long id) {
         Map<String, Object> row = loadPurchaseHeader(id);
-        assertViewAllowed(row);
+        OaPermissionUtils.assertViewAllowed(row, authService, "此记录");
         row.put("items", loadPurchaseItems(id));
         return row;
     }
@@ -121,7 +123,7 @@ public class PurchaseService {
         long newId = sequenceService.nextId("oa_purchase");
         String purchaseNo = formatPurchaseNo(newId);
         LocalDateTime now = LocalDateTime.now();
-        Map<String, String> snap = loadUserDeptSnapshot(user.id());
+        Map<String, String> snap = OaSnapshotUtils.loadUserDeptSnapshot(user.id(), userMapper);
         OaPurchase entity = new OaPurchase();
         entity.setId(newId);
         entity.setPurchaseNo(purchaseNo);
@@ -147,7 +149,7 @@ public class PurchaseService {
     @Transactional
     public Map<String, Object> update(long id, PurchaseDtos.PurchaseUpdateRequest req) {
         Map<String, Object> row = loadPurchaseHeader(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可编辑");
         }
@@ -173,7 +175,7 @@ public class PurchaseService {
     @Transactional
     public Map<String, Object> submit(long id) {
         Map<String, Object> row = loadPurchaseHeader(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可提交");
         }
@@ -190,7 +192,7 @@ public class PurchaseService {
         uw.eq(OaPurchase::getId, id)
                 .set(OaPurchase::getStatus, APPROVING)
                 .set(OaPurchase::getProcessInstanceId, (String) wf.get("processInstanceId"))
-                .set(OaPurchase::getWfInstanceId, toLong(wf.get("wfInstanceId")))
+                .set(OaPurchase::getWfInstanceId, OaUtils.toLong(wf.get("wfInstanceId")))
                 .set(OaPurchase::getUpdatedAt, now)
                 .setSql("version = version + 1");
         purchaseMapper.update(null, uw);
@@ -204,7 +206,7 @@ public class PurchaseService {
     @Transactional
     public Map<String, Object> withdrawPurchase(long id) {
         Map<String, Object> row = loadPurchaseHeader(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!APPROVING.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅审批中可撤回");
         }
@@ -221,7 +223,7 @@ public class PurchaseService {
     @Transactional
     public Map<String, Object> cancelPurchase(long id) {
         Map<String, Object> row = loadPurchaseHeader(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         String st = String.valueOf(row.get("status"));
         if (!DRAFT.equals(st) && !APPROVING.equals(st)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可作废");
@@ -333,13 +335,6 @@ public class PurchaseService {
         return s;
     }
 
-    private void assertOwner(Map<String, Object> row) {
-        AuthUser user = authService.currentUser();
-        long owner = ((Number) row.get("createdBy")).longValue();
-        if (!user.permissions().contains("*") && !user.id().equals(owner)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此采购申请");
-        }
-    }
 
     private void assertAdminOnly() {
         AuthUser user = authService.currentUser();
@@ -349,48 +344,9 @@ public class PurchaseService {
         throw new BusinessException(ErrorCode.FORBIDDEN, "仅采购管理员可执行此操作");
     }
 
-    private void assertViewAllowed(Map<String, Object> row) {
-        assertOwner(row);
-    }
-
-    private Map<String, String> loadUserDeptSnapshot(long userId) {
-        Map<String, Object> r = userMapper.selectUserDeptSnapshot(userId);
-        if (r == null) {
-            return Map.of("deptId", "", "deptName", "");
-        }
-        Map<String, String> m = new LinkedHashMap<>();
-        m.put("deptName", r.get("deptName") == null ? "" : String.valueOf(r.get("deptName")));
-        if (r.get("deptId") != null) {
-            m.put("deptId", String.valueOf(((Number) r.get("deptId")).longValue()));
-        } else {
-            m.put("deptId", "");
-        }
-        return m;
-    }
 
     private static String formatPurchaseNo(long id) {
         return "CG" + String.format("%012d", id);
-    }
-
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        LambdaQueryWrapper<SysConfig> qw = new LambdaQueryWrapper<>();
-        qw.select(SysConfig::getConfigValue).eq(SysConfig::getConfigKey, key);
-        List<SysConfig> configs = sysConfigMapper.selectList(qw);
-        if (configs.isEmpty()) {
-            return defaultValue;
-        }
-        return Integer.parseInt(configs.get(0).getConfigValue());
     }
 
     @SuppressWarnings("unchecked")
@@ -398,10 +354,4 @@ public class PurchaseService {
         return objectMapper.convertValue(entity, Map.class);
     }
 
-    private static Long toLong(Object value) {
-        if (value == null) {
-            return null;
-        }
-        return ((Number) value).longValue();
-    }
 }

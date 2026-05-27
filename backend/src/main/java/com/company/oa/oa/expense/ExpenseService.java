@@ -4,15 +4,17 @@ import com.company.oa.audit.AuditService;
 import com.company.oa.auth.AuthService;
 import com.company.oa.auth.AuthUser;
 import com.company.oa.common.api.PageResponse;
+import com.company.oa.common.service.OaSnapshotUtils;
+import com.company.oa.common.service.OaUtils;
+import com.company.oa.common.service.OaPermissionUtils;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
 import com.company.oa.entity.oa.OaExpense;
 import com.company.oa.entity.oa.OaExpenseItem;
-import com.company.oa.entity.system.SysConfig;
 import com.company.oa.oa.mapper.OaExpenseItemMapper;
 import com.company.oa.oa.mapper.OaExpenseMapper;
 import com.company.oa.org.mapper.UserMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
 import com.company.oa.workflow.WorkflowDtos;
 import com.company.oa.workflow.WorkflowService;
 import com.company.oa.common.service.SequenceService;
@@ -40,7 +42,7 @@ public class ExpenseService {
 
     private final OaExpenseMapper expenseMapper;
     private final OaExpenseItemMapper expenseItemMapper;
-    private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final UserMapper userMapper;
     private final AuthService authService;
     private final WorkflowService workflowService;
@@ -51,7 +53,7 @@ public class ExpenseService {
     public ExpenseService(
             OaExpenseMapper expenseMapper,
             OaExpenseItemMapper expenseItemMapper,
-            SysConfigMapper sysConfigMapper,
+            PaginationHelper paginationHelper,
             UserMapper userMapper,
             AuthService authService,
             WorkflowService workflowService,
@@ -61,7 +63,7 @@ public class ExpenseService {
     ) {
         this.expenseMapper = expenseMapper;
         this.expenseItemMapper = expenseItemMapper;
-        this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.userMapper = userMapper;
         this.authService = authService;
         this.workflowService = workflowService;
@@ -73,7 +75,7 @@ public class ExpenseService {
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> list(long page, long size, Long applicantId) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         LambdaQueryWrapper<OaExpense> qw = new LambdaQueryWrapper<>();
         if (applicantId != null) {
             if (!user.permissions().contains("*") && !user.id().equals(applicantId)) {
@@ -101,7 +103,7 @@ public class ExpenseService {
     @Transactional(readOnly = true)
     public Map<String, Object> detail(long id) {
         Map<String, Object> row = loadExpenseHeader(id);
-        assertViewAllowed(row);
+        OaPermissionUtils.assertViewAllowed(row, authService, "此记录");
         row.put("items", loadExpenseItems(id));
         return row;
     }
@@ -116,7 +118,7 @@ public class ExpenseService {
         long newId = sequenceService.nextId("oa_expense");
         String expenseNo = formatExpenseNo(newId);
         LocalDateTime now = LocalDateTime.now();
-        Map<String, String> snap = loadUserDeptSnapshot(user.id());
+        Map<String, String> snap = OaSnapshotUtils.loadUserDeptSnapshot(user.id(), userMapper);
         OaExpense entity = new OaExpense();
         entity.setId(newId);
         entity.setExpenseNo(expenseNo);
@@ -140,7 +142,7 @@ public class ExpenseService {
     @Transactional
     public Map<String, Object> update(long id, ExpenseDtos.ExpenseUpdateRequest req) {
         Map<String, Object> row = loadExpenseHeader(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可编辑");
         }
@@ -165,7 +167,7 @@ public class ExpenseService {
     @Transactional
     public Map<String, Object> submit(long id) {
         Map<String, Object> row = loadExpenseHeader(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可提交");
         }
@@ -182,7 +184,7 @@ public class ExpenseService {
         uw.eq(OaExpense::getId, id)
                 .set(OaExpense::getStatus, APPROVING)
                 .set(OaExpense::getProcessInstanceId, (String) wf.get("processInstanceId"))
-                .set(OaExpense::getWfInstanceId, toLong(wf.get("wfInstanceId")))
+                .set(OaExpense::getWfInstanceId, OaUtils.toLong(wf.get("wfInstanceId")))
                 .set(OaExpense::getUpdatedAt, now)
                 .setSql("version = version + 1");
         expenseMapper.update(null, uw);
@@ -196,7 +198,7 @@ public class ExpenseService {
     @Transactional
     public Map<String, Object> withdrawExpense(long id) {
         Map<String, Object> row = loadExpenseHeader(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!APPROVING.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅审批中可撤回");
         }
@@ -220,7 +222,7 @@ public class ExpenseService {
     @Transactional
     public Map<String, Object> cancelExpense(long id) {
         Map<String, Object> row = loadExpenseHeader(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         String st = String.valueOf(row.get("status"));
         if (!DRAFT.equals(st) && !APPROVING.equals(st)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可作废");
@@ -271,7 +273,7 @@ public class ExpenseService {
     @Transactional(readOnly = true)
     public Map<String, Object> printPayload(long id) {
         Map<String, Object> row = loadExpenseHeader(id);
-        assertViewAllowed(row);
+        OaPermissionUtils.assertViewAllowed(row, authService, "此记录");
         return Map.of(
                 "id", id,
                 "expenseNo", row.get("expenseNo"),
@@ -328,13 +330,6 @@ public class ExpenseService {
         return s;
     }
 
-    private void assertOwner(Map<String, Object> row) {
-        AuthUser user = authService.currentUser();
-        long owner = ((Number) row.get("createdBy")).longValue();
-        if (!user.permissions().contains("*") && !user.id().equals(owner)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此报销单");
-        }
-    }
 
     private void assertFinanceOrAdmin() {
         AuthUser user = authService.currentUser();
@@ -344,60 +339,14 @@ public class ExpenseService {
         throw new BusinessException(ErrorCode.FORBIDDEN, "仅财务管理员可执行此操作");
     }
 
-    private void assertViewAllowed(Map<String, Object> row) {
-        assertOwner(row);
-    }
-
-    private Map<String, String> loadUserDeptSnapshot(long userId) {
-        Map<String, Object> r = userMapper.selectUserDeptSnapshot(userId);
-        if (r == null) {
-            return Map.of("deptId", "", "deptName", "");
-        }
-        Map<String, String> m = new LinkedHashMap<>();
-        m.put("deptName", r.get("deptName") == null ? "" : String.valueOf(r.get("deptName")));
-        if (r.get("deptId") != null) {
-            m.put("deptId", String.valueOf(((Number) r.get("deptId")).longValue()));
-        } else {
-            m.put("deptId", "");
-        }
-        return m;
-    }
 
     private static String formatExpenseNo(long id) {
         return "BX" + String.format("%012d", id);
     }
 
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        LambdaQueryWrapper<SysConfig> qw = new LambdaQueryWrapper<>();
-        qw.select(SysConfig::getConfigValue).eq(SysConfig::getConfigKey, key);
-        List<SysConfig> configs = sysConfigMapper.selectList(qw);
-        if (configs.isEmpty()) {
-            return defaultValue;
-        }
-        return Integer.parseInt(configs.get(0).getConfigValue());
-    }
-
     @SuppressWarnings("unchecked")
     private Map<String, Object> toMap(Object entity) {
         return objectMapper.convertValue(entity, Map.class);
-    }
-
-    private static Long toLong(Object value) {
-        if (value == null) {
-            return null;
-        }
-        return ((Number) value).longValue();
     }
 
     private static BigDecimal toBigDecimal(Object value) {

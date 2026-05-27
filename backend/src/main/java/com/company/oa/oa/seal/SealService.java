@@ -5,15 +5,18 @@ import com.company.oa.audit.AuditService;
 import com.company.oa.auth.AuthService;
 import com.company.oa.auth.AuthUser;
 import com.company.oa.common.api.PageResponse;
+import com.company.oa.common.service.OaSnapshotUtils;
+import com.company.oa.common.service.OaUtils;
+import com.company.oa.common.service.PaginationHelper;
+import com.company.oa.org.mapper.UserMapper;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
 import com.company.oa.entity.oa.OaSealApply;
-import com.company.oa.entity.system.SysConfig;
 import com.company.oa.oa.mapper.OaSealApplyMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
 import com.company.oa.workflow.WorkflowDtos;
 import com.company.oa.workflow.WorkflowService;
 import com.company.oa.common.service.SequenceService;
+import com.company.oa.common.service.OaPermissionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,27 +35,30 @@ public class SealService {
     private static final String APPROVED = "APPROVED";
 
     private final OaSealApplyMapper oaSealApplyMapper;
-    private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final AuthService authService;
     private final WorkflowService workflowService;
     private final AuditService auditService;
     private final SequenceService sequenceService;
+    private final UserMapper userMapper;
 
-    public SealService(OaSealApplyMapper oaSealApplyMapper, SysConfigMapper sysConfigMapper,
+    public SealService(OaSealApplyMapper oaSealApplyMapper, PaginationHelper paginationHelper,
                        AuthService authService, WorkflowService workflowService,
-                       AuditService auditService, SequenceService sequenceService) {
+                       AuditService auditService, SequenceService sequenceService,
+                       UserMapper userMapper) {
         this.oaSealApplyMapper = oaSealApplyMapper;
-        this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.authService = authService;
         this.workflowService = workflowService;
         this.auditService = auditService;
         this.sequenceService = sequenceService;
+        this.userMapper = userMapper;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> list(long page, long size, Long applicantId) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         LambdaQueryWrapper<OaSealApply> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(OaSealApply::getDeleted, 0);
         if (applicantId != null) {
@@ -77,7 +83,7 @@ public class SealService {
     @Transactional(readOnly = true)
     public Map<String, Object> detail(long id) {
         Map<String, Object> row = loadSeal(id);
-        assertViewAllowed(row);
+        OaPermissionUtils.assertViewAllowed(row, authService, "此记录");
         return row;
     }
 
@@ -85,7 +91,7 @@ public class SealService {
     public Map<String, Object> create(SealDtos.SealCreateRequest req) {
         AuthUser user = authService.currentUser();
         long newId = sequenceService.nextId("oa_seal_apply");
-        Map<String, String> snap = loadUserDeptSnapshot(user.id());
+        Map<String, String> snap = OaSnapshotUtils.loadUserDeptSnapshot(user.id(), userMapper);
         OaSealApply entity = new OaSealApply();
         entity.setId(newId);
         entity.setSealType(req.sealType());
@@ -107,7 +113,7 @@ public class SealService {
     @Transactional
     public Map<String, Object> update(long id, SealDtos.SealUpdateRequest req) {
         Map<String, Object> row = loadSeal(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可编辑");
         }
@@ -127,7 +133,7 @@ public class SealService {
     @Transactional
     public Map<String, Object> submit(long id) {
         Map<String, Object> row = loadSeal(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可提交");
         }
@@ -142,7 +148,7 @@ public class SealService {
         OaSealApply entity = new OaSealApply();
         entity.setStatus(APPROVING);
         entity.setProcessInstanceId((String) wf.get("processInstanceId"));
-        entity.setWfInstanceId(toLong(wf.get("wfInstanceId")));
+        entity.setWfInstanceId(OaUtils.toLong(wf.get("wfInstanceId")));
         oaSealApplyMapper.update(entity, new LambdaQueryWrapper<OaSealApply>()
                 .eq(OaSealApply::getId, id)
                 .eq(OaSealApply::getDeleted, 0));
@@ -156,7 +162,7 @@ public class SealService {
     @Transactional
     public Map<String, Object> withdrawSeal(long id) {
         Map<String, Object> row = loadSeal(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!APPROVING.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅审批中可撤回");
         }
@@ -173,7 +179,7 @@ public class SealService {
     @Transactional
     public Map<String, Object> cancelSeal(long id) {
         Map<String, Object> row = loadSeal(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         String st = String.valueOf(row.get("status"));
         if (!DRAFT.equals(st) && !APPROVING.equals(st)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可作废");
@@ -194,7 +200,7 @@ public class SealService {
     @Transactional
     public Map<String, Object> returnSeal(long id) {
         Map<String, Object> row = loadSeal(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!APPROVED.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已通过可登记归还");
         }
@@ -216,35 +222,6 @@ public class SealService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用章申请不存在");
         }
         return entityToMap(entity);
-    }
-
-    private void assertOwner(Map<String, Object> row) {
-        AuthUser user = authService.currentUser();
-        long owner = ((Number) row.get("createdBy")).longValue();
-        if (!user.permissions().contains("*") && !user.id().equals(owner)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此用章申请");
-        }
-    }
-
-    private void assertViewAllowed(Map<String, Object> row) {
-        assertOwner(row);
-    }
-
-    private Map<String, String> loadUserDeptSnapshot(long userId) {
-        Map<String, Object> r = oaSealApplyMapper.selectUserDeptSnapshot(userId);
-        Map<String, String> m = new LinkedHashMap<>();
-        if (r == null || r.isEmpty()) {
-            m.put("deptId", "");
-            m.put("deptName", "");
-            return m;
-        }
-        m.put("deptName", r.get("deptName") == null ? "" : String.valueOf(r.get("deptName")));
-        if (r.get("deptId") != null) {
-            m.put("deptId", String.valueOf(((Number) r.get("deptId")).longValue()));
-        } else {
-            m.put("deptId", "");
-        }
-        return m;
     }
 
     private Map<String, Object> entityToMap(OaSealApply entity) {
@@ -270,28 +247,4 @@ public class SealService {
         return map;
     }
 
-    private Long toLong(Object value) {
-        if (value == null) return null;
-        return ((Number) value).longValue();
-    }
-
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        SysConfig config = sysConfigMapper.selectOne(
-                new LambdaQueryWrapper<SysConfig>().eq(SysConfig::getConfigKey, key));
-        if (config == null || config.getConfigValue() == null) {
-            return defaultValue;
-        }
-        return Integer.parseInt(config.getConfigValue());
-    }
 }

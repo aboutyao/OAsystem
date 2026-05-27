@@ -11,13 +11,13 @@ import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
 import com.company.oa.entity.notice.OaNotice;
 import com.company.oa.entity.notice.OaNoticeRead;
-import com.company.oa.entity.system.SysConfig;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
+import com.company.oa.common.service.OaPermissionUtils;
 import com.company.oa.message.MessageService;
 import com.company.oa.notice.mapper.OaNoticeMapper;
 import com.company.oa.notice.mapper.OaNoticeReadMapper;
 import com.company.oa.org.mapper.UserMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,21 +37,21 @@ public class NoticeService {
     private final OaNoticeMapper noticeMapper;
     private final OaNoticeReadMapper noticeReadMapper;
     private final UserMapper userMapper;
-    private final SysConfigMapper sysConfigMapper;
+    private final PaginationHelper paginationHelper;
     private final AuthService authService;
     private final AuditService auditService;
     private final SequenceService sequenceService;
     private final MessageService messageService;
 
     public NoticeService(OaNoticeMapper noticeMapper, OaNoticeReadMapper noticeReadMapper,
-                         UserMapper userMapper, SysConfigMapper sysConfigMapper,
+                         UserMapper userMapper, PaginationHelper paginationHelper,
                          AuthService authService, AuditService auditService,
                          SequenceService sequenceService,
                          MessageService messageService) {
         this.noticeMapper = noticeMapper;
         this.noticeReadMapper = noticeReadMapper;
         this.userMapper = userMapper;
-        this.sysConfigMapper = sysConfigMapper;
+        this.paginationHelper = paginationHelper;
         this.authService = authService;
         this.auditService = auditService;
         this.sequenceService = sequenceService;
@@ -61,7 +61,7 @@ public class NoticeService {
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> list(long page, long size, Boolean mine, String status, String category) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         boolean superUser = user.permissions().contains("*");
 
         LambdaQueryWrapper<OaNotice> wrapper = new LambdaQueryWrapper<>();
@@ -128,7 +128,7 @@ public class NoticeService {
     @Transactional
     public Map<String, Object> update(long id, NoticeDtos.NoticeUpdateRequest req) {
         Map<String, Object> row = loadNotice(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可编辑");
         }
@@ -152,7 +152,7 @@ public class NoticeService {
     @Transactional
     public Map<String, Object> publish(long id) {
         Map<String, Object> row = loadNotice(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可发布");
         }
@@ -192,7 +192,7 @@ public class NoticeService {
     @Transactional
     public Map<String, Object> withdraw(long id) {
         Map<String, Object> row = loadNotice(id);
-        assertOwner(row);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
         if (!PUBLISHED.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已发布可撤回");
         }
@@ -311,13 +311,6 @@ public class NoticeService {
         return map;
     }
 
-    private void assertOwner(Map<String, Object> row) {
-        AuthUser user = authService.currentUser();
-        long owner = ((Number) row.get("createdBy")).longValue();
-        if (!user.permissions().contains("*") && !user.id().equals(owner)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此公告");
-        }
-    }
 
     private void assertReadable(Map<String, Object> row) {
         AuthUser user = authService.currentUser();
@@ -335,23 +328,4 @@ public class NoticeService {
         throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看此公告");
     }
 
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        SysConfig config = sysConfigMapper.selectOne(
-                new LambdaQueryWrapper<SysConfig>().eq(SysConfig::getConfigKey, key));
-        if (config == null || config.getConfigValue() == null) {
-            return defaultValue;
-        }
-        return Integer.parseInt(config.getConfigValue());
-    }
 }

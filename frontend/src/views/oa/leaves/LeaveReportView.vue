@@ -88,8 +88,3 @@ void load()
   </div>
 </template>
 
-<style scoped>
-.report-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-.metric__label { color: var(--el-text-color-secondary); font-size: 13px; }
-.metric__value { font-size: 28px; font-weight: 600; margin-top: 4px; }
-</style>

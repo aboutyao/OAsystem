@@ -6,6 +6,7 @@ import com.company.oa.auth.AuthUser;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
+import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.contract.mapper.ContractInfoMapper;
 import com.company.oa.entity.wf.*;
@@ -16,7 +17,6 @@ import com.company.oa.oa.mapper.OaPurchaseMapper;
 import com.company.oa.oa.mapper.OaSealApplyMapper;
 import com.company.oa.org.mapper.UserMapper;
 import com.company.oa.permission.mapper.PermUserRoleMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
 import com.company.oa.workflow.mapper.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -73,7 +73,7 @@ public class WorkflowService {
     private final WfDelegationMapper delegationMapper;
     private final UserMapper userMapper;
     private final PermUserRoleMapper userRoleMapper;
-    private final SysConfigMapper configMapper;
+    private final PaginationHelper paginationHelper;
     private final OaLeaveMapper leaveMapper;
     private final OaExpenseMapper expenseMapper;
     private final OaSealApplyMapper sealApplyMapper;
@@ -100,7 +100,7 @@ public class WorkflowService {
             WfDelegationMapper delegationMapper,
             UserMapper userMapper,
             PermUserRoleMapper userRoleMapper,
-            SysConfigMapper configMapper,
+            PaginationHelper paginationHelper,
             OaLeaveMapper leaveMapper,
             OaExpenseMapper expenseMapper,
             OaSealApplyMapper sealApplyMapper,
@@ -124,7 +124,7 @@ public class WorkflowService {
         this.delegationMapper = delegationMapper;
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
-        this.configMapper = configMapper;
+        this.paginationHelper = paginationHelper;
         this.leaveMapper = leaveMapper;
         this.expenseMapper = expenseMapper;
         this.sealApplyMapper = sealApplyMapper;
@@ -145,7 +145,7 @@ public class WorkflowService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listTemplates(long page, long size) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         long total = templateMapper.selectCount(new LambdaQueryWrapper<WfProcessTemplate>());
         List<WfProcessTemplate> items = templateMapper.selectList(
                 new LambdaQueryWrapper<WfProcessTemplate>()
@@ -376,7 +376,7 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> todoTasks(long page, long size) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         long total = wfTaskMapper.countTodoTasks(user.id(), PENDING);
         List<Map<String, Object>> items = wfTaskMapper.selectTodoTasks(user.id(), PENDING, ps[1], (ps[0] - 1) * ps[1]);
         return new PageResponse<>(ps[0], ps[1], total, items);
@@ -385,7 +385,7 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> doneTasks(long page, long size) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         long total = wfTaskMapper.countDoneTasks(user.id());
         List<Map<String, Object>> items = wfTaskMapper.selectDoneTasks(user.id(), ps[1], (ps[0] - 1) * ps[1]);
         return new PageResponse<>(ps[0], ps[1], total, items);
@@ -394,7 +394,7 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> startedByMe(long page, long size) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         long total = instanceMapper.selectCount(
                 new LambdaQueryWrapper<WfProcessInstance>().eq(WfProcessInstance::getStarterId, user.id())
         );
@@ -410,7 +410,7 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> ccToMe(long page, long size) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         Long total = ccRecordMapper.selectCount(
                 new LambdaQueryWrapper<WfCcRecord>().eq(WfCcRecord::getReceiverId, user.id())
         );
@@ -810,7 +810,7 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listMyDelegations(long page, long size) {
         AuthUser user = authService.currentUser();
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         Long total = delegationMapper.countMyDelegations(user.id());
         long t = total == null ? 0L : total;
         List<Map<String, Object>> items = delegationMapper.selectMyDelegations(user.id(), ps[1], (ps[0] - 1) * ps[1]);
@@ -819,7 +819,7 @@ public class WorkflowService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listAllDelegations(long page, long size, String status) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         Long total = delegationMapper.countAllDelegations(status);
         long t = total == null ? 0L : total;
         List<Map<String, Object>> items = delegationMapper.selectAllDelegations(status, ps[1], (ps[0] - 1) * ps[1]);
@@ -830,7 +830,7 @@ public class WorkflowService {
 
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listExceptions(long page, long size) {
-        long[] ps = clampPage(page, size);
+        long[] ps = paginationHelper.clamp(page, size);
         Long total = instanceMapper.countExceptions();
         long t = total == null ? 0L : total;
         List<Map<String, Object>> items = instanceMapper.selectExceptions(ps[1], (ps[0] - 1) * ps[1]);
@@ -1170,22 +1170,4 @@ public class WorkflowService {
         return sequenceService.nextId(table);
     }
 
-    private long[] clampPage(long page, long size) {
-        int def = intConfig("paging.defaultSize", 20);
-        int max = intConfig("paging.maxSize", 100);
-        long p = page < 1 ? 1 : page;
-        long s = size < 1 ? def : size;
-        if (s > max) {
-            s = max;
-        }
-        return new long[]{p, s};
-    }
-
-    private int intConfig(String key, int defaultValue) {
-        String val = configMapper.selectValueByKey(key);
-        if (val == null || val.isEmpty()) {
-            return defaultValue;
-        }
-        return Integer.parseInt(val);
-    }
 }

@@ -1,37 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { listExpenses } from '../../../api/oa-expenses'
 import type { JsonObject } from '../../../api/types'
+import { usePaginatedList } from '../../../composables/usePaginatedList'
 import { formatDisplayDateTime, statusLabel } from '../oa-shared'
 
 const router = useRouter()
-const loading = ref(false)
-const rows = ref<JsonObject[]>([])
-const total = ref(0)
-const page = ref(1)
-const size = ref(20)
-
-async function load() {
-  loading.value = true
-  try {
-    const res = await listExpenses(page.value, size.value)
-    rows.value = res.items
-    total.value = Number(res.total)
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '加载失败')
-  } finally {
-    loading.value = false
-  }
-}
+const { loading, rows, total, page, size, load, handleSizeChange } = usePaginatedList<JsonObject>(listExpenses)
 
 onMounted(load)
-
-function handleSizeChange() {
-  page.value = 1
-  load()
-}
 
 function goCreate() {
   router.push('/oa/expenses/create')

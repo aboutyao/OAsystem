@@ -11,6 +11,7 @@ import {
   withdrawPurchase,
 } from '../../../api/oa-purchases'
 import type { JsonObject } from '../../../api/types'
+import { useOaActions } from '../../../composables/useOaActions'
 import { formatDisplayDateTime, statusLabel } from '../oa-shared'
 
 const route = useRoute()
@@ -46,42 +47,15 @@ async function reload() {
   }
 }
 
+const { onSubmit, onWithdraw, onCancel } = useOaActions(reload)
+
 function goEdit() {
   router.push(`/oa/purchases/${id.value}/edit`)
 }
 
-async function onSubmit() {
-  try {
-    await ElMessageBox.confirm('确认提交采购申请？', '提交', { type: 'warning' })
-    await submitPurchase(id.value)
-    ElMessage.success('已提交')
-    await reload()
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e instanceof Error ? e.message : '提交失败')
-  }
-}
-
-async function onWithdraw() {
-  try {
-    await ElMessageBox.confirm('确认撤回？', '撤回', { type: 'warning' })
-    await withdrawPurchase(id.value)
-    ElMessage.success('已撤回')
-    await reload()
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e instanceof Error ? e.message : '撤回失败')
-  }
-}
-
-async function onCancel() {
-  try {
-    await ElMessageBox.confirm('确认作废？', '作废', { type: 'warning' })
-    await cancelPurchase(id.value)
-    ElMessage.success('已作废')
-    await reload()
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e instanceof Error ? e.message : '操作失败')
-  }
-}
+function handleSubmit() { onSubmit(() => submitPurchase(id.value)) }
+function handleWithdraw() { onWithdraw(() => withdrawPurchase(id.value)) }
+function handleCancel() { onCancel(() => cancelPurchase(id.value)) }
 
 async function onArrival() {
   try {
@@ -116,9 +90,9 @@ async function onAccept() {
       <div class="oa-page__actions">
         <el-button @click="router.push('/oa/purchases')">返回列表</el-button>
         <el-button v-if="status === 'DRAFT'" type="primary" @click="goEdit">编辑</el-button>
-        <el-button v-if="status === 'DRAFT'" type="success" @click="onSubmit">提交审批</el-button>
-        <el-button v-if="status === 'APPROVING'" @click="onWithdraw">撤回</el-button>
-        <el-button v-if="status === 'DRAFT' || status === 'APPROVING'" type="danger" plain @click="onCancel">作废</el-button>
+        <el-button v-if="status === 'DRAFT'" type="success" @click="handleSubmit">提交审批</el-button>
+        <el-button v-if="status === 'APPROVING'" @click="handleWithdraw">撤回</el-button>
+        <el-button v-if="status === 'DRAFT' || status === 'APPROVING'" type="danger" plain @click="handleCancel">作废</el-button>
         <el-button v-if="status === 'APPROVED' && arrival !== 'ARRIVED'" type="warning" @click="onArrival">确认到货</el-button>
         <el-button
           v-if="status === 'APPROVED' && arrival === 'ARRIVED' && acceptance !== 'PASSED'"
@@ -142,7 +116,7 @@ async function onAccept() {
         <el-descriptions-item label="更新时间">{{ formatDisplayDateTime(row.updatedAt) }}</el-descriptions-item>
       </el-descriptions>
 
-      <h3 class="oa-subtitle">明细</h3>
+      <h3 class="oa-section-title">明细</h3>
       <el-table :data="items" size="small">
         <el-table-column prop="itemName" label="品名" />
         <el-table-column prop="specification" label="规格" />
@@ -155,10 +129,3 @@ async function onAccept() {
   </div>
 </template>
 
-<style scoped>
-.oa-subtitle {
-  margin: 20px 0 12px;
-  font-size: 15px;
-  font-weight: 600;
-}
-</style>
