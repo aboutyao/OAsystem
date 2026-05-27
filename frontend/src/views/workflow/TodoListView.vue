@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { approveTask, rejectTask, todoTasks } from '../../api/workflow'
+import { approveTask, batchApprove as batchApproveApi, rejectTask, todoTasks, listCommentTemplates, createCommentTemplate, deleteCommentTemplate } from '../../api/workflow'
 import type { JsonObject } from '../../api/types'
 import { formatDisplayDateTime } from '../oa/oa-shared'
 import type { TableInstance } from 'element-plus'
@@ -20,6 +20,16 @@ const dialogVisible = ref(false)
 const current = ref<JsonObject | null>(null)
 const comment = ref('')
 const acting = ref(false)
+const commentTemplates = ref<JsonObject[]>([])
+const newTemplateContent = ref('')
+
+onMounted(async () => {
+  try {
+    commentTemplates.value = await listCommentTemplates()
+  } catch {
+    // ignore
+  }
+})
 
 async function load() {
   loading.value = true
@@ -113,26 +123,46 @@ async function batchApprove() {
     return
   }
   acting.value = true
-  let successCount = 0
-  let failCount = 0
   try {
-    for (const row of selectedRows.value) {
-      try {
-        await approveTask(taskId(row), { comment: null, attachmentIds: null })
-        successCount++
-      } catch {
-        failCount++
-      }
-    }
-    if (failCount === 0) {
-      ElMessage.success(`已批量通过 ${successCount} 项`)
+    const taskIds = selectedRows.value.map(row => taskId(row))
+    const result = await batchApproveApi(taskIds)
+    if (result.failed === 0) {
+      ElMessage.success(`已批量通过 ${result.success} 项`)
     } else {
-      ElMessage.warning(`通过 ${successCount} 项，失败 ${failCount} 项`)
+      ElMessage.warning(`通过 ${result.success} 项，失败 ${result.failed} 项`)
     }
     clearSelection()
     await load()
   } finally {
     acting.value = false
+  }
+}
+
+function useTemplate(template: JsonObject) {
+  comment.value = String(template.content ?? '')
+}
+
+async function saveAsTemplate() {
+  if (!comment.value.trim()) {
+    ElMessage.warning('请先输入审批意见')
+    return
+  }
+  try {
+    const result = await createCommentTemplate(comment.value.trim())
+    commentTemplates.value.push(result)
+    ElMessage.success('已保存为模板')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+  }
+}
+
+async function removeTemplate(template: JsonObject) {
+  try {
+    await deleteCommentTemplate(Number(template.id))
+    commentTemplates.value = commentTemplates.value.filter(t => t.id !== template.id)
+    ElMessage.success('已删除')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
   }
 }
 
@@ -196,11 +226,28 @@ function goDone() {
       <template v-if="current">
         <p><strong>{{ current.title }}</strong></p>
         <p class="muted">节点：{{ current.nodeName }}</p>
+
+        <div v-if="commentTemplates.length > 0" class="template-tags">
+          <span class="muted" style="font-size: 12px">常用意见：</span>
+          <el-tag
+            v-for="t in commentTemplates"
+            :key="t.id"
+            size="small"
+            closable
+            @click="useTemplate(t)"
+            @close="removeTemplate(t)"
+            style="cursor: pointer"
+          >
+            {{ t.content }}
+          </el-tag>
+        </div>
+
         <el-form label-position="top">
           <el-form-item label="审批意见（可选）">
             <el-input v-model="comment" type="textarea" :rows="3" maxlength="500" show-word-limit />
           </el-form-item>
         </el-form>
+        <el-button size="small" link type="primary" @click="saveAsTemplate">存为常用意见</el-button>
       </template>
       <template #footer>
         <el-button @click="closeDialog">取消</el-button>
@@ -222,5 +269,12 @@ function goDone() {
   border: 1px solid #bae6fd;
   border-radius: 6px;
   font-size: 14px;
+}
+.template-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 </style>

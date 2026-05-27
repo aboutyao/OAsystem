@@ -35,41 +35,40 @@ public abstract class BaseMySqlTest {
             if (initialized) {
                 return;
             }
-            // 使用本地 MySQL，不启动容器
             String url = System.getenv().getOrDefault("DB_HOST", "localhost");
             String port = System.getenv().getOrDefault("DB_PORT", "3306");
-            String dbName = System.getenv().getOrDefault("DB_NAME", "oa_system_test");
+            String dbName = System.getenv().getOrDefault("DB_NAME", "oa_system");
             String user = System.getenv().getOrDefault("DB_USER", "root");
-            String password = System.getenv().getOrDefault("DB_PASSWORD", "root");
+            String password = System.getenv().getOrDefault("DB_PASSWORD", "root123456");
 
-        String jdbcUrl = "jdbc:mysql://" + url + ":" + port + "/" + dbName
-                + "?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true";
+            String jdbcUrl = "jdbc:mysql://" + url + ":" + port + "/" + dbName
+                    + "?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=utf8mb4";
 
-        DriverManagerDataSource ds = new DriverManagerDataSource(jdbcUrl, user, password);
-        ds.setDriverClassName("com.mysql.cj.jdbc.Driver");
-        dataSource = ds;
-        jdbc = new JdbcTemplate(ds);
+            DriverManagerDataSource ds = new DriverManagerDataSource(jdbcUrl, user, password);
+            ds.setDriverClassName("com.mysql.cj.jdbc.Driver");
+            dataSource = ds;
+            jdbc = new JdbcTemplate(ds);
 
-        Flyway flyway = Flyway.configure()
-                .dataSource(dataSource)
-                .locations("classpath:db/migration")
-                .cleanDisabled(false)
-                .baselineOnMigrate(true)
-                .load();
-        flyway.repair();
-        flyway.migrate();
+            Flyway flyway = Flyway.configure()
+                    .dataSource(dataSource)
+                    .locations("classpath:db/migration")
+                    .cleanDisabled(false)
+                    .baselineOnMigrate(true)
+                    .load();
+            flyway.repair();
+            flyway.migrate();
 
-        MybatisConfiguration configuration = new MybatisConfiguration();
-        configuration.setEnvironment(new Environment("test",
-                new JdbcTransactionFactory(), dataSource));
-        configuration.setLocalCacheScope(LocalCacheScope.STATEMENT);
-        configuration.setMapUnderscoreToCamelCase(true);
-        configuration.setDefaultExecutorType(ExecutorType.SIMPLE);
+            MybatisConfiguration configuration = new MybatisConfiguration();
+            configuration.setEnvironment(new Environment("test",
+                    new JdbcTransactionFactory(), dataSource));
+            configuration.setLocalCacheScope(LocalCacheScope.STATEMENT);
+            configuration.setMapUnderscoreToCamelCase(true);
+            configuration.setDefaultExecutorType(ExecutorType.SIMPLE);
 
-        sqlSessionFactory = new MybatisSqlSessionFactoryBuilder().build(configuration);
-        sqlSession = sqlSessionFactory.openSession(true);
+            sqlSessionFactory = new MybatisSqlSessionFactoryBuilder().build(configuration);
+            sqlSession = sqlSessionFactory.openSession(true);
 
-        registerMappers(configuration, dataSource);
+            registerMappers(configuration, dataSource);
             initialized = true;
         }
     }
@@ -101,6 +100,7 @@ public abstract class BaseMySqlTest {
         configuration.addMapper(com.company.oa.oa.mapper.OaLeaveMapper.class);
         configuration.addMapper(com.company.oa.oa.mapper.OaExpenseMapper.class);
         configuration.addMapper(com.company.oa.oa.mapper.OaExpenseItemMapper.class);
+        configuration.addMapper(com.company.oa.oa.mapper.OaExpenseAttachmentMapper.class);
         configuration.addMapper(com.company.oa.oa.mapper.OaSealApplyMapper.class);
         configuration.addMapper(com.company.oa.oa.mapper.OaPurchaseMapper.class);
         configuration.addMapper(com.company.oa.oa.mapper.OaPurchaseItemMapper.class);

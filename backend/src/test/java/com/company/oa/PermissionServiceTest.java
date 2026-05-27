@@ -1,15 +1,9 @@
 package com.company.oa;
 
-import com.company.oa.auth.AuthUser;
-import com.company.oa.auth.AuthService;
-import com.company.oa.common.mapper.SysSequenceMapper;
-import com.company.oa.common.service.SequenceService;
 import com.company.oa.permission.PermissionDtos;
 import com.company.oa.permission.PermissionService;
-import com.company.oa.permission.cache.PermissionCacheService;
-import com.company.oa.permission.mapper.*;
-import com.company.oa.system.mapper.SysConfigMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -17,38 +11,14 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-class PermissionServiceTest extends BaseMySqlTest {
+class PermissionServiceTest extends BaseSpringTest {
+
+    @Autowired
+    private PermissionService permissionService;
 
     @Test
     void rolesMenusAndPreviewLoadFromDatabase() {
-        AuthService authService = mock(AuthService.class);
-        when(authService.currentUser()).thenReturn(new AuthUser(1L, "admin", "管理员", null, null, List.of("SUPER_ADMIN"), List.of("*")));
-
-        SequenceService sequenceService = new SequenceService(getMapper(SysSequenceMapper.class));
-        PermissionCacheService cacheService = mock(PermissionCacheService.class);
-        when(cacheService.getUserPreview(anyLong())).thenReturn(null);
-        when(cacheService.getMenuTree()).thenReturn(null);
-        PermissionService permissionService = new PermissionService(
-                getMapper(PermRoleMapper.class),
-                getMapper(PermMenuMapper.class),
-                getMapper(PermButtonMapper.class),
-                getMapper(PermUserRoleMapper.class),
-                getMapper(PermRoleMenuMapper.class),
-                getMapper(PermRoleButtonMapper.class),
-                getMapper(PermDataScopeMapper.class),
-                getMapper(PermDataScopeDeptMapper.class),
-                getMapper(PermFieldPermissionMapper.class),
-                getMapper(PermTempAuthMapper.class),
-                getMapper(SysConfigMapper.class),
-                authService,
-                sequenceService,
-                cacheService
-        );
-
         assertThat(permissionService.listRoles(1, 20).total()).isGreaterThanOrEqualTo(3);
         assertThat(permissionService.menuTree()).isNotEmpty();
 

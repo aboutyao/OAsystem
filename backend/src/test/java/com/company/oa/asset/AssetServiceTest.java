@@ -1,60 +1,32 @@
 package com.company.oa.asset;
 
-import com.company.oa.BaseMySqlTest;
-import com.company.oa.audit.AuditService;
-import com.company.oa.audit.mapper.AuditLoginLogMapper;
-import com.company.oa.audit.mapper.AuditOperationLogMapper;
-import com.company.oa.auth.AuthService;
-import com.company.oa.auth.AuthUser;
-import com.company.oa.common.mapper.SysSequenceMapper;
-import com.company.oa.common.service.SequenceService;
-import com.company.oa.asset.mapper.AssetInfoMapper;
-import com.company.oa.asset.mapper.AssetRecordMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
+import com.company.oa.BaseSpringTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-class AssetServiceTest extends BaseMySqlTest {
+class AssetServiceTest extends BaseSpringTest {
 
+    @Autowired
     private AssetService service;
 
     @BeforeEach
     void setUp() {
-        AuthService auth = mock(AuthService.class);
-        when(auth.currentUser()).thenReturn(
-                new AuthUser(1L, "admin", "管理员", 2L, "总经办", List.of("SUPER_ADMIN"), List.of("*"))
-        );
-        SequenceService sequenceService = new SequenceService(getMapper(SysSequenceMapper.class));
-        AuditService auditService = new AuditService(
-                getMapper(AuditLoginLogMapper.class),
-                getMapper(AuditOperationLogMapper.class),
-                getMapper(SysConfigMapper.class),
-                sequenceService
-        );
-        service = new AssetService(
-                getMapper(AssetInfoMapper.class),
-                getMapper(AssetRecordMapper.class),
-                getMapper(SysConfigMapper.class),
-                auth,
-                auditService,
-                sequenceService
-        );
+        jdbc.update("DELETE FROM asset_record WHERE asset_id IN (SELECT id FROM asset_info WHERE asset_no LIKE 'FA-TEST-%')");
+        jdbc.update("DELETE FROM asset_info WHERE asset_no LIKE 'FA-TEST-%'");
     }
 
     @Test
     void createReceiveReturnRepairScrapStateMachine() {
         Map<String, Object> created = service.create(new AssetDtos.AssetCreateRequest(
-                "FA-0001", "笔记本", "ELECTRONIC", "Mac", LocalDate.of(2026, 1, 1),
+                "FA-TEST-0001", "笔记本", "ELECTRONIC", "Mac", LocalDate.of(2026, 1, 1),
                 new BigDecimal("12000.00"), null, 2L, "测试"
         ));
         long id = ((Number) created.get("id")).longValue();
@@ -89,18 +61,18 @@ class AssetServiceTest extends BaseMySqlTest {
     @Test
     void duplicateAssetNoIsRejected() {
         service.create(new AssetDtos.AssetCreateRequest(
-                "FA-0010", "投影仪", "ELECTRONIC", "EP-1", LocalDate.of(2026, 1, 1),
+                "FA-TEST-DUP", "投影仪", "ELECTRONIC", "EP-1", LocalDate.of(2026, 1, 1),
                 new BigDecimal("3000.00"), null, 2L, null
         ));
         assertThatThrownBy(() -> service.create(new AssetDtos.AssetCreateRequest(
-                "FA-0010", "重复", null, null, null, null, null, 2L, null
+                "FA-TEST-DUP", "重复", null, null, null, null, null, 2L, null
         ))).isInstanceOf(Exception.class);
     }
 
     @Test
     void receiveOnlyAllowedFromIdle() {
         Map<String, Object> created = service.create(new AssetDtos.AssetCreateRequest(
-                "FA-0020", "工位电脑", "ELECTRONIC", null, null, null, 1L, 2L, null
+                "FA-TEST-0020", "工位电脑", "ELECTRONIC", null, null, null, 1L, 2L, null
         ));
         long id = ((Number) created.get("id")).longValue();
         assertThat(created.get("status")).isEqualTo("IN_USE");

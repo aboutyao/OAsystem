@@ -1,45 +1,25 @@
 package com.company.oa.message;
 
-import com.company.oa.BaseMySqlTest;
-import com.company.oa.audit.AuditService;
-import com.company.oa.audit.mapper.AuditLoginLogMapper;
-import com.company.oa.audit.mapper.AuditOperationLogMapper;
-import com.company.oa.auth.AuthService;
-import com.company.oa.auth.AuthUser;
-import com.company.oa.common.mapper.SysSequenceMapper;
-import com.company.oa.common.service.SequenceService;
-import com.company.oa.message.mapper.MsgMessageMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
+import com.company.oa.BaseSpringTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-class MessageServiceTest extends BaseMySqlTest {
+class MessageServiceTest extends BaseSpringTest {
 
+    @Autowired
     private MessageService service;
 
     @BeforeEach
     void setUp() {
         // Clean up msg_message to prevent pollution from other tests
         jdbc.update("DELETE FROM msg_message");
-
-        AuthService authService = mock(AuthService.class);
-        when(authService.currentUser()).thenReturn(
-                new AuthUser(1L, "admin", "系统管理员", 2L, "总经办",
-                        List.of("SUPER_ADMIN"), List.of("*"))
-        );
-        SequenceService sequenceService = new SequenceService(getMapper(SysSequenceMapper.class));
-        AuditService auditService = new AuditService(getMapper(AuditLoginLogMapper.class),
-                getMapper(AuditOperationLogMapper.class), getMapper(SysConfigMapper.class), sequenceService);
-        service = new MessageService(getMapper(MsgMessageMapper.class), getMapper(SysConfigMapper.class),
-                authService, auditService, sequenceService);
     }
 
     private long insertMessage(long id, String readStatus, String archiveStatus) {

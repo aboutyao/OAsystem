@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -63,6 +64,18 @@ public class MessageController {
     public Map<String, Object> delete(@PathVariable long id) {
         messageService.delete(id);
         return Map.of("deleted", true, "id", id);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/notification-settings")
+    public Map<String, Object> getSettings() {
+        return messageService.getNotificationSettings();
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @PutMapping("/notification-settings")
+    public Map<String, Object> updateSettings(@RequestBody Map<String, Object> body) {
+        return messageService.updateNotificationSettings(body);
     }
 
 }

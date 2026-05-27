@@ -99,6 +99,7 @@ public class LeaveService {
     }
 
     @Transactional
+    @com.company.oa.audit.Auditable(action = "LEAVE_CREATE", entityType = "LEAVE", description = "创建请假申请")
     public Map<String, Object> create(LeaveDtos.LeaveCreateRequest req) {
         AuthUser user = authService.currentUser();
         long newId = sequenceService.nextId("oa_leave");
@@ -125,6 +126,7 @@ public class LeaveService {
     }
 
     @Transactional
+    @com.company.oa.audit.Auditable(action = "LEAVE_UPDATE", entityType = "LEAVE", description = "更新请假申请", captureDiff = true)
     public Map<String, Object> update(long id, LeaveDtos.LeaveUpdateRequest req) {
         Map<String, Object> row = loadLeave(id);
         OaPermissionUtils.assertOwner(row, authService, "此记录");

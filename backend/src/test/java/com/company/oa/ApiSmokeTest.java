@@ -103,7 +103,7 @@ class ApiSmokeTest {
     @BeforeEach
     void setUp() {
         AuthUser user = new AuthUser(1L, "admin", "系统管理员", 2L, "总经办", List.of("SUPER_ADMIN"), List.of("*"));
-        when(authService.login(any())).thenReturn(new LoginResponse("test-token", 7200, user));
+        when(authService.login(any())).thenReturn(new LoginResponse("test-token", 7200, user, false, false));
         when(authService.currentUser()).thenReturn(user);
         Map<String, Object> menuRow = new LinkedHashMap<>();
         menuRow.put("id", 1L);

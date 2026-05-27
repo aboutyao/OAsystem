@@ -9,6 +9,17 @@ export interface ApiResponse<T> {
   timestamp: string
 }
 
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
 export const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 15000,
@@ -20,7 +31,7 @@ http.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`
   }
   if (config.method && ['post', 'put', 'delete'].includes(config.method)) {
-    config.headers['X-Idempotency-Key'] = crypto.randomUUID()
+    config.headers['X-Idempotency-Key'] = generateUUID()
   }
   return config
 })

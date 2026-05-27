@@ -79,10 +79,10 @@ services:
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-oa_minio_admin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minio123456}
-      MAIL_HOST: ${MAIL_HOST:mailhog}
-      MAIL_PORT: ${MAIL_PORT:1025}
-      MAIL_USERNAME: ${MAIL_USERNAME:}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:}
+      MAIL_HOST: ${MAIL_HOST:-mailhog}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
     ports:
       - "8080:8080"
     volumes:

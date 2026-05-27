@@ -35,17 +35,20 @@ public class MessageService {
     private final AuditService auditService;
     private final SequenceService sequenceService;
     private final NotificationSseController notificationSseController;
+    private final com.company.oa.message.mapper.UserNotificationSettingsMapper settingsMapper;
 
     public MessageService(MsgMessageMapper messageMapper, PaginationHelper paginationHelper,
                           AuthService authService, AuditService auditService,
                           SequenceService sequenceService,
-                          NotificationSseController notificationSseController) {
+                          NotificationSseController notificationSseController,
+                          com.company.oa.message.mapper.UserNotificationSettingsMapper settingsMapper) {
         this.messageMapper = messageMapper;
         this.paginationHelper = paginationHelper;
         this.authService = authService;
         this.auditService = auditService;
         this.sequenceService = sequenceService;
         this.notificationSseController = notificationSseController;
+        this.settingsMapper = settingsMapper;
     }
 
     @Transactional(readOnly = true)
@@ -202,6 +205,71 @@ public class MessageService {
         map.put("createdAt", m.getCreatedAt() == null ? null : m.getCreatedAt().toString());
         map.put("readAt", m.getReadAt() == null ? null : m.getReadAt().toString());
         return map;
+    }
+
+    // ─── Notification Settings ──────────────────────────────────────────
+
+    public Map<String, Object> getNotificationSettings() {
+        AuthUser user = authService.currentUser();
+        var settings = settingsMapper.selectOne(
+                new LambdaQueryWrapper<com.company.oa.entity.message.UserNotificationSettings>()
+                        .eq(com.company.oa.entity.message.UserNotificationSettings::getUserId, user.id())
+        );
+        if (settings == null) {
+            Map<String, Object> defaults = new LinkedHashMap<>();
+            defaults.put("enableEmail", true);
+            defaults.put("enableSse", true);
+            defaults.put("enableDnd", false);
+            defaults.put("dndStart", null);
+            defaults.put("dndEnd", null);
+            return defaults;
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("enableEmail", settings.getEnableEmail());
+        result.put("enableSse", settings.getEnableSse());
+        result.put("enableDnd", settings.getEnableDnd());
+        result.put("dndStart", settings.getDndStart());
+        result.put("dndEnd", settings.getDndEnd());
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> updateNotificationSettings(Map<String, Object> body) {
+        AuthUser user = authService.currentUser();
+        var existing = settingsMapper.selectOne(
+                new LambdaQueryWrapper<com.company.oa.entity.message.UserNotificationSettings>()
+                        .eq(com.company.oa.entity.message.UserNotificationSettings::getUserId, user.id())
+        );
+
+        if (existing == null) {
+            existing = new com.company.oa.entity.message.UserNotificationSettings();
+            existing.setId(sequenceService.nextId("user_notification_settings"));
+            existing.setUserId(user.id());
+            existing.setEnableEmail(true);
+            existing.setEnableSse(true);
+            existing.setEnableDnd(false);
+            settingsMapper.insert(existing);
+        }
+
+        if (body.containsKey("enableEmail")) {
+            existing.setEnableEmail(Boolean.TRUE.equals(body.get("enableEmail")));
+        }
+        if (body.containsKey("enableSse")) {
+            existing.setEnableSse(Boolean.TRUE.equals(body.get("enableSse")));
+        }
+        if (body.containsKey("enableDnd")) {
+            existing.setEnableDnd(Boolean.TRUE.equals(body.get("enableDnd")));
+        }
+        if (body.containsKey("dndStart")) {
+            existing.setDndStart(body.get("dndStart") != null ? String.valueOf(body.get("dndStart")) : null);
+        }
+        if (body.containsKey("dndEnd")) {
+            existing.setDndEnd(body.get("dndEnd") != null ? String.valueOf(body.get("dndEnd")) : null);
+        }
+        existing.setUpdatedAt(LocalDateTime.now());
+        settingsMapper.updateById(existing);
+
+        return getNotificationSettings();
     }
 
 }

@@ -32,7 +32,7 @@ public class SlaCheckJob {
                 .eq(WfProcessInstance::getStatus, "APPROVING")
                 .eq(WfProcessInstance::getDeleted, 0)
                 .le(WfProcessInstance::getSlaDeadline, LocalDateTime.now())
-                .eq(WfProcessInstance::getSlaBreached, false));
+                .eq(WfProcessInstance::isSlaBreached, false));
 
         for (WfProcessInstance instance : breached) {
             instanceMapper.markSlaBreach(instance.getId());

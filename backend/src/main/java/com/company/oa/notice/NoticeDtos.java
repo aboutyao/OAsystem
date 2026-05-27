@@ -2,6 +2,8 @@ package com.company.oa.notice;
 
 import jakarta.validation.constraints.NotBlank;
 
+import java.time.LocalDateTime;
+
 public final class NoticeDtos {
     private NoticeDtos() {
     }
@@ -11,7 +13,8 @@ public final class NoticeDtos {
             @NotBlank String content,
             String category,
             String publishScopeType,
-            int topFlag
+            int topFlag,
+            LocalDateTime scheduledAt
     ) {
     }
 
@@ -20,7 +23,8 @@ public final class NoticeDtos {
             @NotBlank String content,
             String category,
             String publishScopeType,
-            int topFlag
+            int topFlag,
+            LocalDateTime scheduledAt
     ) {
     }
 }

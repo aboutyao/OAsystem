@@ -1,16 +1,13 @@
 package com.company.oa.ops;
 
-import com.company.oa.BaseMySqlTest;
+import com.company.oa.BaseSpringTest;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
-import com.company.oa.ops.mapper.AppExceptionLogMapper;
-import com.company.oa.ops.mapper.BackupRecordMapper;
-import com.company.oa.ops.mapper.JobTaskLogMapper;
+import com.company.oa.common.service.PaginationHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -19,25 +16,21 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class OpsServiceTest extends BaseMySqlTest {
+class OpsServiceTest extends BaseSpringTest {
 
+    @Autowired
     private OpsService service;
+
+    @Autowired
+    private PaginationHelper paginationHelper;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
         jdbc.update("DELETE FROM job_task_log WHERE job_code LIKE 'TEST_%'");
         jdbc.update("DELETE FROM app_exception_log WHERE request_id LIKE 'rid-%'");
-
-        ObjectMapper objectMapper = new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        service = new OpsService(
-                getMapper(JobTaskLogMapper.class),
-                getMapper(AppExceptionLogMapper.class),
-                getMapper(BackupRecordMapper.class),
-                objectMapper
-        );
     }
 
     @Test

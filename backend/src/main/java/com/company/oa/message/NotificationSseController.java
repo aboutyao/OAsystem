@@ -47,11 +47,9 @@ public class NotificationSseController {
     }
 
     public void notifyUser(long userId, String type, String title, String content) {
-        List<SseEmitter> emitters = userEmitters.get(userId);
+        CopyOnWriteArrayList<SseEmitter> emitters = userEmitters.get(userId);
         if (emitters == null) return;
-        Iterator<SseEmitter> it = emitters.iterator();
-        while (it.hasNext()) {
-            SseEmitter emitter = it.next();
+        for (SseEmitter emitter : emitters) {
             try {
                 emitter.send(SseEmitter.event().name("notification").data(Map.of(
                     "type", type, "title", title, "content", content,
@@ -59,7 +57,7 @@ public class NotificationSseController {
                 )));
             } catch (IOException e) {
                 log.warn("SSE emitter send failed, removing: {}", e.getMessage());
-                it.remove();
+                emitters.remove(emitter);
             }
         }
     }

@@ -18,8 +18,11 @@ import com.company.oa.message.MessageService;
 import com.company.oa.notice.mapper.OaNoticeMapper;
 import com.company.oa.notice.mapper.OaNoticeReadMapper;
 import com.company.oa.org.mapper.UserMapper;
+import com.company.oa.file.MinioStorageService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -42,12 +45,14 @@ public class NoticeService {
     private final AuditService auditService;
     private final SequenceService sequenceService;
     private final MessageService messageService;
+    private final MinioStorageService minioStorageService;
 
     public NoticeService(OaNoticeMapper noticeMapper, OaNoticeReadMapper noticeReadMapper,
                          UserMapper userMapper, PaginationHelper paginationHelper,
                          AuthService authService, AuditService auditService,
                          SequenceService sequenceService,
-                         MessageService messageService) {
+                         MessageService messageService,
+                         MinioStorageService minioStorageService) {
         this.noticeMapper = noticeMapper;
         this.noticeReadMapper = noticeReadMapper;
         this.userMapper = userMapper;
@@ -56,6 +61,7 @@ public class NoticeService {
         this.auditService = auditService;
         this.sequenceService = sequenceService;
         this.messageService = messageService;
+        this.minioStorageService = minioStorageService;
     }
 
     @Transactional(readOnly = true)
@@ -120,6 +126,7 @@ public class NoticeService {
         entity.setTopFlag(top);
         entity.setStatus(DRAFT);
         entity.setCreatedBy(user.id());
+        entity.setScheduledAt(req.scheduledAt());
         noticeMapper.insert(entity);
 
         return detail(entity.getId());
@@ -144,6 +151,7 @@ public class NoticeService {
                         .set(OaNotice::getCategory, cat)
                         .set(OaNotice::getPublishScopeType, scope)
                         .set(OaNotice::getTopFlag, top)
+                        .set(OaNotice::getScheduledAt, req.scheduledAt())
                         .set(OaNotice::getUpdatedAt, LocalDateTime.now())
                         .setSql("version = version + 1"));
         return detail(id);
@@ -157,19 +165,34 @@ public class NoticeService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可发布");
         }
         LocalDateTime now = LocalDateTime.now();
-        noticeMapper.update(null,
-                new LambdaUpdateWrapper<OaNotice>()
-                        .eq(OaNotice::getId, id)
-                        .set(OaNotice::getStatus, PUBLISHED)
-                        .set(OaNotice::getPublishAt, now)
-                        .set(OaNotice::getWithdrawAt, null)
-                        .set(OaNotice::getUpdatedAt, now)
-                        .setSql("version = version + 1"));
-        auditService.safeRecordOperation(authService.currentUser().id(),
-                "NOTICE_PUBLISH", "NOTICE", id, AuditService.SUCCESS, null);
+        LocalDateTime scheduledAt = row.get("scheduledAt") != null
+                ? LocalDateTime.parse(String.valueOf(row.get("scheduledAt")))
+                : null;
 
-        // 发布后自动给所有激活用户发消息中心通知
-        notifyAllUsers(String.valueOf(row.get("title")), id);
+        if (scheduledAt != null && scheduledAt.isAfter(now)) {
+            // 定时发布：状态设为 SCHEDULED
+            noticeMapper.update(null,
+                    new LambdaUpdateWrapper<OaNotice>()
+                            .eq(OaNotice::getId, id)
+                            .set(OaNotice::getStatus, "SCHEDULED")
+                            .set(OaNotice::getUpdatedAt, now)
+                            .setSql("version = version + 1"));
+            auditService.safeRecordOperation(authService.currentUser().id(),
+                    "NOTICE_SCHEDULE", "NOTICE", id, AuditService.SUCCESS, null);
+        } else {
+            // 立即发布
+            noticeMapper.update(null,
+                    new LambdaUpdateWrapper<OaNotice>()
+                            .eq(OaNotice::getId, id)
+                            .set(OaNotice::getStatus, PUBLISHED)
+                            .set(OaNotice::getPublishAt, now)
+                            .set(OaNotice::getWithdrawAt, null)
+                            .set(OaNotice::getUpdatedAt, now)
+                            .setSql("version = version + 1"));
+            auditService.safeRecordOperation(authService.currentUser().id(),
+                    "NOTICE_PUBLISH", "NOTICE", id, AuditService.SUCCESS, null);
+            notifyAllUsers(String.valueOf(row.get("title")), id);
+        }
 
         return detail(id);
     }
@@ -285,6 +308,7 @@ public class NoticeService {
         map.put("category", n.getCategory());
         map.put("topFlag", n.getTopFlag());
         map.put("publishAt", n.getPublishAt() == null ? null : n.getPublishAt().toString());
+        map.put("scheduledAt", n.getScheduledAt() == null ? null : n.getScheduledAt().toString());
         map.put("status", n.getStatus());
         map.put("createdBy", n.getCreatedBy());
         map.put("createdAt", n.getCreatedAt() == null ? null : n.getCreatedAt().toString());
@@ -302,6 +326,7 @@ public class NoticeService {
         map.put("topFlag", n.getTopFlag());
         map.put("topUntil", n.getTopUntil() == null ? null : n.getTopUntil().toString());
         map.put("publishAt", n.getPublishAt() == null ? null : n.getPublishAt().toString());
+        map.put("scheduledAt", n.getScheduledAt() == null ? null : n.getScheduledAt().toString());
         map.put("withdrawAt", n.getWithdrawAt() == null ? null : n.getWithdrawAt().toString());
         map.put("status", n.getStatus());
         map.put("createdBy", n.getCreatedBy());
@@ -309,6 +334,44 @@ public class NoticeService {
         map.put("updatedAt", n.getUpdatedAt() == null ? null : n.getUpdatedAt().toString());
         map.put("version", n.getVersion());
         return map;
+    }
+
+    @Transactional
+    public Map<String, Object> uploadAttachment(MultipartFile file) {
+        AuthUser user = authService.currentUser();
+        String originalFilename = file.getOriginalFilename();
+        String ext = originalFilename != null && originalFilename.contains(".")
+                ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                : "";
+        String objectName = "notice/" + sequenceService.nextId("notice_attachment") + ext;
+
+        try {
+            minioStorageService.upload(objectName, file.getInputStream(),
+                    file.getContentType(), file.getSize());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "文件上传失败: " + e.getMessage());
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("url", "/api/notices/attachment/" + objectName);
+        result.put("name", originalFilename);
+        result.put("size", file.getSize());
+        return result;
+    }
+
+    public void downloadAttachment(String objectName, HttpServletResponse response) {
+        AuthUser user = authService.currentUser();
+        try {
+            var inputStream = minioStorageService.download(objectName);
+            String filename = objectName.contains("/")
+                    ? objectName.substring(objectName.lastIndexOf('/') + 1)
+                    : objectName;
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+            response.getOutputStream().write(inputStream.readAllBytes());
+            response.getOutputStream().flush();
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "文件不存在");
+        }
     }
 
 

@@ -121,7 +121,7 @@ async function onConfirm() {
     </div>
 
     <el-card v-if="row" shadow="never">
-      <div class="notice-body">{{ row.content }}</div>
+      <div class="notice-body" v-html="row.content"></div>
       <el-divider v-if="stats" />
       <p v-if="stats" class="muted notice-stats">
         已读 {{ stats.readCount }} · 未读约 {{ stats.unreadCount }} · 确认 {{ stats.confirmedCount }}
@@ -132,9 +132,12 @@ async function onConfirm() {
 
 <style scoped>
 .notice-body {
-  white-space: pre-wrap;
   line-height: 1.65;
   font-size: 15px;
+}
+.notice-body :deep(img) {
+  max-width: 100%;
+  height: auto;
 }
 .notice-meta {
   margin-left: 12px;

@@ -52,6 +52,7 @@ import AssetDetailView from '../views/asset/AssetDetailView.vue'
 import SupplyListView from '../views/supply/SupplyListView.vue'
 import SupplyRecordsView from '../views/supply/SupplyRecordsView.vue'
 import MessageListView from '../views/message/MessageListView.vue'
+import NotificationSettingsView from '../views/message/NotificationSettingsView.vue'
 import FileLibraryView from '../views/file/FileLibraryView.vue'
 import OrgDeptView from '../views/org/OrgDeptView.vue'
 import OrgUserView from '../views/org/OrgUserView.vue'
@@ -228,6 +229,7 @@ const moduleRoutes: RouteRecordRaw[] = [
     meta: { title: '我的申请', module: 'workflow' },
   },
   { path: 'messages', name: 'message-list', component: MessageListView, meta: { title: '消息中心', module: 'message' } },
+  { path: 'messages/settings', name: 'notification-settings', component: NotificationSettingsView, meta: { title: '消息设置', module: 'message' } },
   { path: 'account/profile', name: 'account-profile', component: AccountProfileView, meta: { title: '个人信息', module: 'org' } },
   { path: 'account/change-password', name: 'account-change-password', component: AccountChangePasswordView, meta: { title: '修改密码', module: 'org' } },
   { path: 'account/2fa-setup', name: 'account-2fa-setup', component: TwoFactorSetupView, meta: { title: '二步验证设置', module: 'org' } },

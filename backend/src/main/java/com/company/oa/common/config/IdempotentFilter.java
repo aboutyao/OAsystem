@@ -4,12 +4,9 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-@Component
 public class IdempotentFilter implements Filter {
     private final StringRedisTemplate redisTemplate;
     private static final String PREFIX = "idempotent:";

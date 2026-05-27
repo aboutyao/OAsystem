@@ -6,6 +6,7 @@ import dev.samstevens.totp.code.HashingAlgorithm;
 import dev.samstevens.totp.secret.DefaultSecretGenerator;
 import dev.samstevens.totp.qr.QrData;
 import dev.samstevens.totp.qr.ZxingPngQrGenerator;
+import dev.samstevens.totp.time.SystemTimeProvider;
 import org.springframework.stereotype.Service;
 
 import java.util.Base64;
@@ -14,7 +15,7 @@ import java.util.Base64;
 public class TwoFactorService {
     private final DefaultSecretGenerator secretGenerator = new DefaultSecretGenerator();
     private final DefaultCodeGenerator codeGenerator = new DefaultCodeGenerator();
-    private final DefaultCodeVerifier codeVerifier = new DefaultCodeVerifier(codeGenerator);
+    private final DefaultCodeVerifier codeVerifier = new DefaultCodeVerifier(codeGenerator, new SystemTimeProvider());
 
     public String generateSecret() {
         return secretGenerator.generate();
@@ -34,9 +35,16 @@ public class TwoFactorService {
 
     public String getQrCodeImage(String secret, String username, String issuer) {
         try {
-            String uri = getQrCodeUri(secret, username, issuer);
+            QrData data = new QrData.Builder()
+                    .label(issuer + ":" + username)
+                    .secret(secret)
+                    .issuer(issuer)
+                    .algorithm(HashingAlgorithm.SHA1)
+                    .digits(6)
+                    .period(30)
+                    .build();
             ZxingPngQrGenerator generator = new ZxingPngQrGenerator();
-            byte[] svg = generator.generate(uri);
+            byte[] svg = generator.generate(data);
             return Base64.getEncoder().encodeToString(svg);
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate QR code", e);

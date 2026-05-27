@@ -74,4 +74,10 @@ public final class WorkflowDtos {
             String changeReason
     ) {
     }
+
+    public record BatchApproveRequest(
+            @NotNull List<Long> taskIds,
+            String comment
+    ) {
+    }
 }

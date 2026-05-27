@@ -36,3 +36,17 @@ export function archiveMessage(id: number) {
 export function deleteMessage(id: number) {
   return http.delete<unknown, JsonObject>(`/messages/${id}`)
 }
+
+export function getNotificationSettings() {
+  return http.get<unknown, JsonObject>('/notification-settings')
+}
+
+export function updateNotificationSettings(settings: {
+  enableEmail?: boolean
+  enableSse?: boolean
+  enableDnd?: boolean
+  dndStart?: string | null
+  dndEnd?: string | null
+}) {
+  return http.put<unknown, JsonObject>('/notification-settings', settings)
+}

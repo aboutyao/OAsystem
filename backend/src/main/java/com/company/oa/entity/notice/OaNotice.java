@@ -32,6 +32,8 @@ public class OaNotice extends VersionedEntity {
 
     private LocalDateTime publishAt;
 
+    private LocalDateTime scheduledAt;
+
     private LocalDateTime withdrawAt;
 
     private LocalDateTime expireAt;

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Lock } from '@element-plus/icons-vue'
 import { useAuthStore } from '../../stores/auth'
+import type { FormInstance, FormRules } from 'element-plus'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -11,30 +12,52 @@ const loading = ref(false)
 const showTwoFactor = ref(false)
 const tempToken = ref('')
 const twoFactorCode = ref('')
+const formRef = ref<FormInstance>()
+
 const form = reactive({
   username: '',
   password: '',
   remember: false,
 })
 
+const rules: FormRules = {
+  username: [
+    { required: true, message: '请输入账号', trigger: 'blur' },
+    { min: 2, max: 50, message: '账号长度 2-50 个字符', trigger: 'blur' },
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 4, max: 100, message: '密码长度 4-100 个字符', trigger: 'blur' },
+  ],
+}
+
 async function submit() {
-  loading.value = true
-  try {
-    const result = await authStore.signIn(form.username, form.password)
-    if (result.requires2FA) {
-      tempToken.value = result.accessToken
-      showTwoFactor.value = true
-      ElMessage.info('请输入二步验证码')
-    } else if (result.passwordExpired) {
-      router.push('/force-change-password')
-    } else {
-      router.push('/dashboard')
+  if (!formRef.value) return
+  await formRef.value.validate(async (valid) => {
+    if (!valid) return
+    loading.value = true
+    try {
+      const result = await authStore.signIn(form.username, form.password)
+      if (result.requires2FA) {
+        tempToken.value = result.accessToken
+        showTwoFactor.value = true
+        ElMessage.info('请输入二步验证码')
+      } else if (result.passwordExpired) {
+        router.push('/force-change-password')
+      } else {
+        if (form.remember) {
+          localStorage.setItem('oa_remember_user', form.username)
+        } else {
+          localStorage.removeItem('oa_remember_user')
+        }
+        router.push('/dashboard')
+      }
+    } catch (e) {
+      ElMessage.error(e instanceof Error ? e.message : '登录失败')
+    } finally {
+      loading.value = false
     }
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '登录失败')
-  } finally {
-    loading.value = false
-  }
+  })
 }
 
 async function submitTwoFactor() {
@@ -62,93 +85,47 @@ function cancelTwoFactor() {
   tempToken.value = ''
   twoFactorCode.value = ''
 }
+
+const savedUser = localStorage.getItem('oa_remember_user')
+if (savedUser) {
+  form.username = savedUser
+  form.remember = true
+}
 </script>
 
 <template>
   <main class="login-page">
     <section class="login-panel">
-      <!-- Colored top bar -->
       <div class="login-panel__topbar" />
 
-      <!-- Brand area with logo -->
       <div class="login-panel__brand">
         <div class="login-panel__logo">
-          <svg
-            width="48"
-            height="48"
-            viewBox="0 0 48 48"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <!-- Shield / document shape -->
-            <path
-              d="M24 4L6 12v12c0 11.11 7.67 21.48 18 24 10.33-2.52 18-12.89 18-24V12L24 4z"
-              fill="var(--oa-primary)"
-              opacity="0.12"
-            />
-            <path
-              d="M24 4L6 12v12c0 11.11 7.67 21.48 18 24 10.33-2.52 18-12.89 18-24V12L24 4z"
-              stroke="var(--oa-primary)"
-              stroke-width="2"
-              stroke-linejoin="round"
-              fill="none"
-            />
-            <!-- OA text inside shield -->
-            <text
-              x="24"
-              y="30"
-              text-anchor="middle"
-              fill="var(--oa-primary)"
-              font-size="16"
-              font-weight="800"
-              font-family="Inter, system-ui, sans-serif"
-            >
-              OA
-            </text>
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M24 4L6 12v12c0 11.11 7.67 21.48 18 24 10.33-2.52 18-12.89 18-24V12L24 4z" fill="var(--oa-primary)" opacity="0.12"/>
+            <path d="M24 4L6 12v12c0 11.11 7.67 21.48 18 24 10.33-2.52 18-12.89 18-24V12L24 4z" stroke="var(--oa-primary)" stroke-width="2" stroke-linejoin="round" fill="none"/>
+            <text x="24" y="30" text-anchor="middle" fill="var(--oa-primary)" font-size="16" font-weight="800" font-family="Inter, system-ui, sans-serif">OA</text>
           </svg>
         </div>
         <h1 class="login-panel__title">企业级 OA 系统</h1>
         <p class="login-panel__subtitle">统一组织、权限、流程、规则、消息、审计与业务协同</p>
       </div>
 
-      <!-- Form body -->
       <div class="login-panel__body">
-        <!-- Login form -->
-        <el-form v-if="!showTwoFactor" label-position="top" @submit.prevent="submit">
-          <el-form-item label="账号">
-            <el-input
-              v-model="form.username"
-              placeholder="请输入账号"
-              autocomplete="username"
-              size="large"
-            />
+        <el-form v-if="!showTwoFactor" ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="submit">
+          <el-form-item label="账号" prop="username">
+            <el-input v-model="form.username" placeholder="请输入账号" autocomplete="username" size="large" />
           </el-form-item>
-          <el-form-item label="密码">
-            <el-input
-              v-model="form.password"
-              type="password"
-              placeholder="请输入密码"
-              autocomplete="current-password"
-              show-password
-              size="large"
-            />
+          <el-form-item label="密码" prop="password">
+            <el-input v-model="form.password" type="password" placeholder="请输入密码" autocomplete="current-password" show-password size="large" />
           </el-form-item>
           <div class="login-panel__actions">
             <el-checkbox v-model="form.remember">记住我</el-checkbox>
           </div>
-          <el-button
-            type="primary"
-            size="large"
-            :loading="loading"
-            class="login-panel__button"
-            @click="submit"
-          >
+          <el-button type="primary" size="large" :loading="loading" class="login-panel__button" @click="submit">
             登录
           </el-button>
         </el-form>
 
-        <!-- Two-Factor Authentication form -->
         <el-form v-else label-position="top" @submit.prevent="submitTwoFactor">
           <div class="login-panel__2fa-header">
             <el-icon :size="48" color="var(--oa-primary)"><Lock /></el-icon>
@@ -156,28 +133,12 @@ function cancelTwoFactor() {
             <p>请输入您的身份验证器应用中的6位验证码</p>
           </div>
           <el-form-item label="验证码">
-            <el-input
-              v-model="twoFactorCode"
-              placeholder="请输入6位验证码"
-              maxlength="6"
-              size="large"
-              autofocus
-            />
+            <el-input v-model="twoFactorCode" placeholder="请输入6位验证码" maxlength="6" inputmode="numeric" size="large" autofocus />
           </el-form-item>
-          <el-button
-            type="primary"
-            size="large"
-            :loading="loading"
-            class="login-panel__button"
-            @click="submitTwoFactor"
-          >
+          <el-button type="primary" size="large" :loading="loading" class="login-panel__button" @click="submitTwoFactor">
             验证
           </el-button>
-          <el-button
-            size="large"
-            class="login-panel__button"
-            @click="cancelTwoFactor"
-          >
+          <el-button size="large" class="login-panel__button" @click="cancelTwoFactor">
             返回登录
           </el-button>
         </el-form>
@@ -195,7 +156,6 @@ function cancelTwoFactor() {
         </div>
       </div>
 
-      <!-- Footer with copyright -->
       <div class="login-panel__footer">
         <span class="login-panel__copyright">&copy; 2026 企业级 OA 系统</span>
       </div>

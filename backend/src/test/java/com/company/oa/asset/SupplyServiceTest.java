@@ -1,49 +1,31 @@
 package com.company.oa.asset;
 
-import com.company.oa.BaseMySqlTest;
-import com.company.oa.auth.AuthService;
-import com.company.oa.auth.AuthUser;
-import com.company.oa.common.mapper.SysSequenceMapper;
-import com.company.oa.common.service.SequenceService;
-import com.company.oa.asset.mapper.AssetSupplyMapper;
-import com.company.oa.asset.mapper.AssetSupplyRecordMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
+import com.company.oa.BaseSpringTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-class SupplyServiceTest extends BaseMySqlTest {
+class SupplyServiceTest extends BaseSpringTest {
 
+    @Autowired
     private SupplyService service;
 
     @BeforeEach
     void setUp() {
-        AuthService auth = mock(AuthService.class);
-        when(auth.currentUser()).thenReturn(
-                new AuthUser(1L, "admin", "管理员", 2L, "总经办", List.of("SUPER_ADMIN"), List.of("*"))
-        );
-        SequenceService sequenceService = new SequenceService(getMapper(SysSequenceMapper.class));
-        service = new SupplyService(
-                getMapper(AssetSupplyMapper.class),
-                getMapper(AssetSupplyRecordMapper.class),
-                getMapper(SysConfigMapper.class),
-                auth,
-                sequenceService
-        );
+        jdbc.update("DELETE FROM asset_supply_record WHERE supply_id IN (SELECT id FROM asset_supply WHERE supply_code LIKE 'TEST-S-%')");
+        jdbc.update("DELETE FROM asset_supply WHERE supply_code LIKE 'TEST-S-%'");
     }
 
     @Test
     void stockInOutKeepsStockNonNegative() {
         Map<String, Object> created = service.create(new SupplyDtos.SupplyCreateRequest(
-                "S-0001", "A4纸", "OFFICE", "包", new BigDecimal("5"), null
+                "TEST-S-0001", "A4纸", "OFFICE", "包", new BigDecimal("5"), null
         ));
         long id = ((Number) created.get("id")).longValue();
         assertThat(((BigDecimal) created.get("stockQuantity"))).isEqualByComparingTo("0");
@@ -68,7 +50,7 @@ class SupplyServiceTest extends BaseMySqlTest {
     @Test
     void adjustResetsStockAndRecordsDelta() {
         Map<String, Object> created = service.create(new SupplyDtos.SupplyCreateRequest(
-                "S-0002", "签字笔", null, "支", null, null
+                "TEST-S-0002", "签字笔", null, "支", null, null
         ));
         long id = ((Number) created.get("id")).longValue();
 
@@ -88,10 +70,10 @@ class SupplyServiceTest extends BaseMySqlTest {
     @Test
     void duplicateSupplyCodeRejected() {
         service.create(new SupplyDtos.SupplyCreateRequest(
-                "S-DUP", "胶水", null, "瓶", null, null
+                "TEST-S-DUP", "胶水", null, "瓶", null, null
         ));
         assertThatThrownBy(() -> service.create(new SupplyDtos.SupplyCreateRequest(
-                "S-DUP", "重复", null, "瓶", null, null
+                "TEST-S-DUP", "重复", null, "瓶", null, null
         ))).isInstanceOf(Exception.class);
     }
 }

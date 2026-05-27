@@ -124,3 +124,19 @@ export function createVersion(templateId: number, body?: { changeReason?: string
 export function publishVersion(versionId: number) {
   return http.post<unknown, JsonObject>(`/workflow/versions/${versionId}/publish`)
 }
+
+export function listCommentTemplates() {
+  return http.get<unknown, JsonObject[]>('/workflow/comment-templates')
+}
+
+export function createCommentTemplate(content: string) {
+  return http.post<unknown, JsonObject>('/workflow/comment-templates', { content })
+}
+
+export function deleteCommentTemplate(id: number) {
+  return http.delete<unknown, void>(`/workflow/comment-templates/${id}`)
+}
+
+export function batchApprove(taskIds: number[], comment?: string) {
+  return http.post<unknown, JsonObject>('/workflow/tasks/batch-approve', { taskIds, comment })
+}

@@ -1,21 +1,18 @@
 package com.company.oa.audit;
 
-import com.company.oa.BaseMySqlTest;
-import com.company.oa.audit.mapper.AuditLoginLogMapper;
-import com.company.oa.audit.mapper.AuditOperationLogMapper;
+import com.company.oa.BaseSpringTest;
 import com.company.oa.common.api.PageResponse;
-import com.company.oa.common.mapper.SysSequenceMapper;
-import com.company.oa.common.service.SequenceService;
-import com.company.oa.system.mapper.SysConfigMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class AuditServiceTest extends BaseMySqlTest {
+class AuditServiceTest extends BaseSpringTest {
 
+    @Autowired
     private AuditService service;
 
     @BeforeEach
@@ -23,14 +20,6 @@ class AuditServiceTest extends BaseMySqlTest {
         // Clean up audit log tables to prevent pollution from other tests
         jdbc.update("DELETE FROM audit_login_log");
         jdbc.update("DELETE FROM audit_operation_log");
-
-        SequenceService sequenceService = new SequenceService(getMapper(SysSequenceMapper.class));
-        service = new AuditService(
-                getMapper(AuditLoginLogMapper.class),
-                getMapper(AuditOperationLogMapper.class),
-                getMapper(SysConfigMapper.class),
-                sequenceService
-        );
     }
 
     @Test

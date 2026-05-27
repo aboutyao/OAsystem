@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   archiveMessage,
@@ -10,6 +11,8 @@ import {
 } from '../../api/messages'
 import type { JsonObject } from '../../api/types'
 import { formatDisplayDateTime } from '../oa/oa-shared'
+
+const router = useRouter()
 
 const loading = ref(false)
 const rows = ref<JsonObject[]>([])
@@ -125,6 +128,38 @@ watch([readFilter, archiveFilter], () => {
   page.value = 1
   void load()
 })
+
+function navigateToDetail(row: JsonObject) {
+  const businessType = String(row.businessType ?? '')
+  const wfInstanceId = row.wfInstanceId
+
+  if (businessType === 'WORKFLOW' && wfInstanceId) {
+    router.push('/workflow/instances')
+    return
+  }
+
+  const businessId = row.businessId
+  if (!businessType || !businessId) {
+    ElMessage.info('该消息没有关联的业务记录')
+    return
+  }
+
+  const id = Number(businessId)
+  const routeMap: Record<string, string> = {
+    LEAVE: `/oa/leaves/${id}`,
+    EXPENSE: `/oa/expenses/${id}`,
+    SEAL: `/oa/seals/${id}`,
+    PURCHASE: `/oa/purchases/${id}`,
+    CONTRACT: `/contracts/${id}`,
+  }
+
+  const path = routeMap[businessType]
+  if (path) {
+    router.push(path)
+  } else {
+    ElMessage.info(`暂不支持跳转到 ${businessType} 详情`)
+  }
+}
 </script>
 
 <template>
@@ -167,7 +202,13 @@ watch([readFilter, archiveFilter], () => {
         <el-table-column label="类型" width="100">
           <template #default="{ row }">{{ TYPE_LABEL[String(row.messageType ?? '')] ?? row.messageType }}</template>
         </el-table-column>
-        <el-table-column prop="title" label="标题" min-width="200" />
+        <el-table-column label="标题" min-width="200">
+          <template #default="{ row }">
+            <el-link type="primary" :underline="false" @click="navigateToDetail(row)">
+              {{ row.title }}
+            </el-link>
+          </template>
+        </el-table-column>
         <el-table-column prop="content" label="内容" min-width="220" show-overflow-tooltip />
         <el-table-column label="阅读" width="88">
           <template #default="{ row }">

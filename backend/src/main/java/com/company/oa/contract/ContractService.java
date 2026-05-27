@@ -37,6 +37,7 @@ public class ContractService {
     private static final String APPROVED = "APPROVED";
     private static final String SIGNED = "SIGNED";
     private static final String TERMINATED = "TERMINATED";
+    private static final String CANCELLED = "CANCELLED";
 
     private final ContractInfoMapper contractMapper;
     private final PaginationHelper paginationHelper;
@@ -103,6 +104,7 @@ public class ContractService {
     }
 
     @Transactional
+    @com.company.oa.audit.Auditable(action = "CONTRACT_CREATE", entityType = "CONTRACT", description = "创建合同")
     public Map<String, Object> create(ContractDtos.ContractCreateRequest req) {
         AuthUser user = authService.currentUser();
         long newId = sequenceService.nextId("contract_info");

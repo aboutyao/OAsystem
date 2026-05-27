@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createNotice, getNotice, updateNotice } from '../../api/notices'
+import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
+import type { IDomEditor, IEditorConfig } from '@wangeditor/editor'
+import '@wangeditor/editor/dist/css/style.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +21,44 @@ const form = reactive({
   category: 'GENERAL',
   publishScopeType: 'ALL',
   topFlag: 0,
+  scheduledAt: null as Date | null,
+})
+
+const editorRef = shallowRef<IDomEditor>()
+const toolbarConfig = {}
+const editorConfig: Partial<IEditorConfig> = {
+  placeholder: '请输入公告内容...',
+  MENU_CONF: {
+    uploadImage: {
+      server: '/api/notices/upload',
+      fieldName: 'file',
+      maxFileSize: 10 * 1024 * 1024,
+      allowedFileTypes: ['image/*'],
+      customInsert(res: { data: { url: string } }, insertFn: (url: string) => void) {
+        insertFn(res.data.url, '', '')
+      },
+    },
+    uploadVideo: {
+      server: '/api/notices/upload',
+      fieldName: 'file',
+      maxFileSize: 50 * 1024 * 1024,
+      allowedFileTypes: ['video/*'],
+      customInsert(res: { data: { url: string } }, insertFn: (url: string) => void) {
+        insertFn(res.data.url, '', '')
+      },
+    },
+  },
+}
+
+function handleEditorCreated(editor: IDomEditor) {
+  editorRef.value = editor
+}
+
+onBeforeUnmount(() => {
+  const editor = editorRef.value
+  if (editor) {
+    editor.destroy()
+  }
 })
 
 onMounted(async () => {
@@ -35,6 +76,9 @@ onMounted(async () => {
     form.category = String(row.category ?? 'GENERAL')
     form.publishScopeType = String(row.publishScopeType ?? 'ALL')
     form.topFlag = Number(row.topFlag ?? 0)
+    if (row.scheduledAt) {
+      form.scheduledAt = new Date(String(row.scheduledAt))
+    }
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
     router.push('/notices')
@@ -44,16 +88,18 @@ onMounted(async () => {
 })
 
 async function onSave() {
-  if (!form.title.trim() || !form.content.trim()) {
+  const htmlContent = editorRef.value?.getHtml() ?? ''
+  if (!form.title.trim() || !htmlContent.trim() || htmlContent === '<p><br></p>') {
     ElMessage.warning('请填写标题与正文')
     return
   }
   const body = {
     title: form.title.trim(),
-    content: form.content.trim(),
+    content: htmlContent,
     category: form.category,
     publishScopeType: form.publishScopeType,
     topFlag: form.topFlag,
+    scheduledAt: form.scheduledAt || null,
   }
   saving.value = true
   try {
@@ -106,8 +152,33 @@ async function onSave() {
         <el-form-item label="置顶">
           <el-switch v-model="form.topFlag" :active-value="1" :inactive-value="0" />
         </el-form-item>
+        <el-form-item label="定时发布">
+          <el-date-picker
+            v-model="form.scheduledAt"
+            type="datetime"
+            placeholder="留空则手动发布"
+            format="YYYY-MM-DD HH:mm"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            :disabled-date="(time: Date) => time.getTime() < Date.now() - 86400000"
+          />
+          <span class="muted" style="margin-left: 8px">留空则手动发布</span>
+        </el-form-item>
         <el-form-item label="正文" required>
-          <el-input v-model="form.content" type="textarea" :rows="12" maxlength="15000" show-word-limit />
+          <div style="border: 1px solid #dcdfe6; border-radius: 4px; width: 100%">
+            <Toolbar
+              style="border-bottom: 1px solid #dcdfe6"
+              :editor="editorRef"
+              :defaultConfig="toolbarConfig"
+              mode="default"
+            />
+            <Editor
+              style="height: 400px; overflow-y: hidden"
+              v-model="form.content"
+              :defaultConfig="editorConfig"
+              mode="default"
+              @onCreated="handleEditorCreated"
+            />
+          </div>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="saving" @click="onSave">保存草稿</el-button>

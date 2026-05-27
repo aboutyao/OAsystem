@@ -125,6 +125,7 @@ public class ExpenseService {
     }
 
     @Transactional
+    @com.company.oa.audit.Auditable(action = "EXPENSE_CREATE", entityType = "EXPENSE", description = "创建报销申请")
     public Map<String, Object> create(ExpenseDtos.ExpenseCreateRequest req) {
         BigDecimal sum = sumItems(req.items());
         if (req.totalAmount().compareTo(sum) != 0) {

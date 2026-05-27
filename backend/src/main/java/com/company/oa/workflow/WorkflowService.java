@@ -10,6 +10,7 @@ import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.contract.mapper.ContractInfoMapper;
 import com.company.oa.entity.wf.*;
+import com.company.oa.workflow.CommentTemplate;
 import com.company.oa.message.MessageService;
 import com.company.oa.message.EmailService;
 import com.company.oa.oa.mapper.OaExpenseMapper;
@@ -81,6 +82,7 @@ public class WorkflowService {
     private final OaSealApplyMapper sealApplyMapper;
     private final OaPurchaseMapper purchaseMapper;
     private final ContractInfoMapper contractMapper;
+    private final CommentTemplateMapper commentTemplateMapper;
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule());
 
@@ -108,7 +110,8 @@ public class WorkflowService {
             OaExpenseMapper expenseMapper,
             OaSealApplyMapper sealApplyMapper,
             OaPurchaseMapper purchaseMapper,
-            ContractInfoMapper contractMapper
+            ContractInfoMapper contractMapper,
+            CommentTemplateMapper commentTemplateMapper
     ) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
@@ -134,6 +137,7 @@ public class WorkflowService {
         this.sealApplyMapper = sealApplyMapper;
         this.purchaseMapper = purchaseMapper;
         this.contractMapper = contractMapper;
+        this.commentTemplateMapper = commentTemplateMapper;
     }
 
     private record PublishedVersion(long templateId, long versionId, String processDefinitionKey) {
@@ -1261,4 +1265,70 @@ public class WorkflowService {
         return user != null ? user.getEmail() : null;
     }
 
+    // ─── Comment Templates ──────────────────────────────────────────────
+
+    public List<Map<String, Object>> listCommentTemplates() {
+        AuthUser user = authService.currentUser();
+        var templates = commentTemplateMapper.selectList(
+                new LambdaQueryWrapper<CommentTemplate>()
+                        .eq(CommentTemplate::getUserId, user.id())
+                        .orderByAsc(CommentTemplate::getSortOrder)
+        );
+        return templates.stream().map(t -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", t.getId());
+            m.put("content", t.getContent());
+            m.put("sortOrder", t.getSortOrder());
+            return m;
+        }).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public Map<String, Object> createCommentTemplate(String content) {
+        AuthUser user = authService.currentUser();
+        if (content == null || content.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "模板内容不能为空");
+        }
+        CommentTemplate entity = new CommentTemplate();
+        entity.setId(sequenceService.nextId("wf_comment_template"));
+        entity.setUserId(user.id());
+        entity.setContent(content.trim());
+        entity.setSortOrder(0);
+        commentTemplateMapper.insert(entity);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", entity.getId());
+        result.put("content", entity.getContent());
+        return result;
+    }
+
+    @Transactional
+    public void deleteCommentTemplate(long id) {
+        AuthUser user = authService.currentUser();
+        var entity = commentTemplateMapper.selectById(id);
+        if (entity == null || !entity.getUserId().equals(user.id())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "模板不存在");
+        }
+        commentTemplateMapper.deleteById(id);
+    }
+
+    // ─── Batch Approve ──────────────────────────────────────────────────
+
+    @Transactional
+    public Map<String, Object> batchApprove(WorkflowDtos.BatchApproveRequest request) {
+        int success = 0;
+        int failed = 0;
+        for (Long taskId : request.taskIds()) {
+            try {
+                approveTask(taskId, new WorkflowDtos.ApproveRequest(request.comment(), null));
+                success++;
+            } catch (Exception e) {
+                failed++;
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", success);
+        result.put("failed", failed);
+        result.put("total", request.taskIds().size());
+        return result;
+    }
 }

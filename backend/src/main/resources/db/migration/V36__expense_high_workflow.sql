@@ -6,9 +6,9 @@
 -- will automatically fall back to the standard EXPENSE template if no EXPENSE_HIGH template
 -- has been published yet.
 
-INSERT INTO wf_process_template (id, template_code, template_name, business_type, description, status, created_at, updated_at, deleted)
+INSERT INTO wf_process_template (id, template_code, template_name, business_type, description, status, created_at, updated_at)
 SELECT IFNULL(MAX(id), 0) + 1, 'EXPENSE_HIGH', '高金额报销审批', 'EXPENSE_HIGH',
-       '报销金额超过10000元时使用，需要总经理审批', 'ENABLED', NOW(), NOW(), 0
+       '报销金额超过10000元时使用，需要总经理审批', 'ENABLED', NOW(), NOW()
 FROM wf_process_template
 WHERE NOT EXISTS (
     SELECT 1 FROM wf_process_template WHERE business_type = 'EXPENSE_HIGH'

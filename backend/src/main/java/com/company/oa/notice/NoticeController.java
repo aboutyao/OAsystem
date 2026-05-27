@@ -1,6 +1,7 @@
 package com.company.oa.notice;
 
 import com.company.oa.common.api.PageResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -81,5 +83,17 @@ public class NoticeController {
     @GetMapping("/{id}/read-stats")
     public Map<String, Object> readStats(@PathVariable long id) {
         return noticeService.readStats(id);
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:create')")
+    @PostMapping("/upload")
+    public Map<String, Object> uploadFile(@RequestParam("file") MultipartFile file) {
+        return noticeService.uploadAttachment(file);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/attachment/{objectName:.+}")
+    public void downloadAttachment(@PathVariable String objectName, HttpServletResponse response) {
+        noticeService.downloadAttachment(objectName, response);
     }
 }

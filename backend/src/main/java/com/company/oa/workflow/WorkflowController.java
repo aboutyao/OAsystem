@@ -237,4 +237,28 @@ public class WorkflowController {
     public Map<String, Object> publishVersion(@PathVariable long id) {
         return workflowService.publishVersion(id);
     }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/comment-templates")
+    public List<Map<String, Object>> listCommentTemplates() {
+        return workflowService.listCommentTemplates();
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/comment-templates")
+    public Map<String, Object> createCommentTemplate(@RequestBody Map<String, String> body) {
+        return workflowService.createCommentTemplate(body.get("content"));
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @DeleteMapping("/comment-templates/{id}")
+    public void deleteCommentTemplate(@PathVariable long id) {
+        workflowService.deleteCommentTemplate(id);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/tasks/batch-approve")
+    public Map<String, Object> batchApprove(@RequestBody WorkflowDtos.BatchApproveRequest request) {
+        return workflowService.batchApprove(request);
+    }
 }

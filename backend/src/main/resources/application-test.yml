@@ -1,0 +1,51 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:oa_system}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=utf8mb4
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:root123456}
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:25}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis123}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: false
+  main:
+    allow-bean-definition-overriding: true
+
+flowable:
+  database-schema-update: true
+  async-executor-activate: false
+
+file:
+  storage:
+    path: /tmp/oa-test-files
+
+security:
+  jwt:
+    secret: oa-system-test-jwt-secret-must-be-at-least-32chars!!
+    expires-in-seconds: 7200
+
+minio:
+  endpoint: http://localhost:9000
+  access-key: oa_minio_admin
+  secret-key: minio123456
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.company.oa: DEBUG

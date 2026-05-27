@@ -121,7 +121,42 @@ const statCards = computed(() => [
 </script>
 
 <template>
-  <div class="dashboard-page" v-loading="loading">
+  <div class="dashboard-page">
+    <!-- Skeleton Loading -->
+    <template v-if="loading && !summary">
+      <section class="dashboard-welcome skeleton-welcome">
+        <el-skeleton :rows="1" animated style="width: 100%">
+          <template #template>
+            <div style="display: flex; align-items: center; gap: 16px">
+              <el-skeleton-item variant="circle" style="width: 52px; height: 52px" />
+              <div style="flex: 1">
+                <el-skeleton-item variant="h3" style="width: 200px; margin-bottom: 8px" />
+                <el-skeleton-item variant="text" style="width: 300px" />
+              </div>
+            </div>
+          </template>
+        </el-skeleton>
+      </section>
+      <section class="stat-grid">
+        <div v-for="i in 5" :key="i" class="stat-card skeleton-card">
+          <el-skeleton :rows="2" animated>
+            <template #template>
+              <el-skeleton-item variant="rect" style="width: 40px; height: 40px; margin-bottom: 12px" />
+              <el-skeleton-item variant="h1" style="width: 60px; margin-bottom: 8px" />
+              <el-skeleton-item variant="text" style="width: 80px" />
+            </template>
+          </el-skeleton>
+        </div>
+      </section>
+      <div class="dashboard-row">
+        <el-card v-for="i in 2" :key="i" shadow="never" class="dashboard-row__col">
+          <el-skeleton :rows="4" animated />
+        </el-card>
+      </div>
+    </template>
+
+    <!-- Real Content -->
+    <template v-else>
     <!-- Welcome -->
     <section class="dashboard-welcome">
       <el-avatar :size="52" style="background: var(--oa-primary); font-size: 20px; flex-shrink: 0">
@@ -336,10 +371,22 @@ const statCards = computed(() => [
         </div>
       </el-card>
     </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
+.skeleton-welcome {
+  padding: 24px 28px;
+  background: linear-gradient(135deg, var(--oa-primary-bg), #f0f4ff);
+  border-radius: var(--oa-radius-lg);
+  margin-bottom: 20px;
+}
+
+.skeleton-card {
+  padding: 20px;
+}
+
 .dashboard-list {
   display: flex;
   flex-direction: column;

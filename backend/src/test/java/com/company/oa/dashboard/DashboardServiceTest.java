@@ -1,22 +1,9 @@
 package com.company.oa.dashboard;
 
-import com.company.oa.BaseMySqlTest;
-import com.company.oa.audit.AuditService;
-import com.company.oa.audit.mapper.AuditLoginLogMapper;
-import com.company.oa.audit.mapper.AuditOperationLogMapper;
-import com.company.oa.auth.AuthService;
-import com.company.oa.auth.AuthUser;
-import com.company.oa.common.mapper.SysSequenceMapper;
-import com.company.oa.common.service.SequenceService;
-import com.company.oa.message.MessageService;
-import com.company.oa.message.mapper.MsgMessageMapper;
-import com.company.oa.notice.mapper.OaNoticeMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
-import com.company.oa.workflow.mapper.WfCcRecordMapper;
-import com.company.oa.workflow.mapper.WfProcessInstanceMapper;
-import com.company.oa.workflow.mapper.WfTaskMapper;
+import com.company.oa.BaseSpringTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -24,11 +11,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-class DashboardServiceTest extends BaseMySqlTest {
+class DashboardServiceTest extends BaseSpringTest {
 
+    @Autowired
     private DashboardService dashboardService;
 
     @BeforeEach
@@ -39,34 +25,6 @@ class DashboardServiceTest extends BaseMySqlTest {
         jdbc.update("DELETE FROM wf_cc_record");
         jdbc.update("DELETE FROM msg_message");
         jdbc.update("DELETE FROM app_exception_log");
-
-        AuthService authService = mock(AuthService.class);
-        when(authService.currentUser()).thenReturn(
-                new AuthUser(1L, "admin", "系统管理员", 2L, "总经办",
-                        List.of("SUPER_ADMIN"), List.of("*"))
-        );
-        SequenceService sequenceService = new SequenceService(getMapper(SysSequenceMapper.class));
-        AuditService auditService = new AuditService(
-                getMapper(AuditLoginLogMapper.class),
-                getMapper(AuditOperationLogMapper.class),
-                getMapper(SysConfigMapper.class),
-                sequenceService
-        );
-        MessageService messageService = new MessageService(
-                getMapper(MsgMessageMapper.class),
-                getMapper(SysConfigMapper.class),
-                authService,
-                auditService,
-                sequenceService
-        );
-        dashboardService = new DashboardService(
-                getMapper(WfTaskMapper.class),
-                getMapper(WfProcessInstanceMapper.class),
-                getMapper(WfCcRecordMapper.class),
-                getMapper(OaNoticeMapper.class),
-                authService,
-                messageService
-        );
     }
 
     @Test

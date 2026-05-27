@@ -1,71 +1,36 @@
 package com.company.oa;
 
-import com.company.oa.common.mapper.SysSequenceMapper;
-import com.company.oa.common.service.SequenceService;
 import com.company.oa.org.OrgDtos;
 import com.company.oa.org.OrgService;
-import com.company.oa.org.mapper.*;
-import com.company.oa.permission.mapper.PermRoleMapper;
-import com.company.oa.permission.mapper.PermUserRoleMapper;
 import com.company.oa.system.SystemDtos;
 import com.company.oa.system.SystemService;
-import com.company.oa.system.cache.SystemCacheService;
-import com.company.oa.system.mapper.SysConfigMapper;
-import com.company.oa.system.mapper.SysDictItemMapper;
-import com.company.oa.system.mapper.SysDictTypeMapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
-class OrgServiceTest extends BaseMySqlTest {
+class OrgServiceTest extends BaseSpringTest {
 
+    @Autowired
     private OrgService orgService;
+
+    @Autowired
     private SystemService systemService;
 
     @BeforeEach
     void setUp() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        SequenceService sequenceService = new SequenceService(getMapper(SysSequenceMapper.class));
-        orgService = new OrgService(
-                getMapper(UserMapper.class),
-                getMapper(DeptMapper.class),
-                getMapper(PositionMapper.class),
-                getMapper(RankMapper.class),
-                getMapper(UserDeptMapper.class),
-                getMapper(ChangeLogMapper.class),
-                getMapper(PermUserRoleMapper.class),
-                getMapper(PermRoleMapper.class),
-                getMapper(SysConfigMapper.class),
-                PasswordEncoderFactories.createDelegatingPasswordEncoder(),
-                sequenceService,
-                objectMapper
-        );
-        systemService = new SystemService(
-                getMapper(SysConfigMapper.class),
-                getMapper(SysDictTypeMapper.class),
-                getMapper(SysDictItemMapper.class),
-                sequenceService,
-                mock(SystemCacheService.class)
-        );
+        jdbc.update("DELETE FROM org_user WHERE username = 'zhangsan'");
     }
 
     @Test
     void deptTreeAndUserCrudAgainstSeededDatabase() {
         assertThat(orgService.deptTree()).isNotEmpty();
 
-        var page = orgService.listUsers(1, 20, null);
+        var page = orgService.listUsers(1, 20, null, null, null, null);
         assertThat(page.total()).isGreaterThanOrEqualTo(1);
 
         var created = orgService.createUser(new OrgDtos.UserCreateRequest(

@@ -1,32 +1,15 @@
 package com.company.oa.workflow;
 
-import com.company.oa.BaseMySqlTest;
-import com.company.oa.audit.AuditService;
-import com.company.oa.audit.mapper.AuditLoginLogMapper;
-import com.company.oa.audit.mapper.AuditOperationLogMapper;
-import com.company.oa.auth.AuthService;
+import com.company.oa.BaseSpringTest;
 import com.company.oa.auth.AuthUser;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
-import com.company.oa.common.mapper.SysSequenceMapper;
-import com.company.oa.common.service.SequenceService;
-import com.company.oa.contract.mapper.ContractInfoMapper;
-import com.company.oa.message.MessageService;
-import com.company.oa.message.mapper.MsgMessageMapper;
-import com.company.oa.oa.mapper.OaExpenseMapper;
-import com.company.oa.oa.mapper.OaLeaveMapper;
-import com.company.oa.oa.mapper.OaPurchaseMapper;
-import com.company.oa.oa.mapper.OaSealApplyMapper;
-import com.company.oa.org.mapper.UserMapper;
-import com.company.oa.permission.mapper.PermUserRoleMapper;
-import com.company.oa.system.mapper.SysConfigMapper;
-import com.company.oa.workflow.mapper.*;
-import org.flowable.engine.HistoryService;
-import org.flowable.engine.RepositoryService;
-import org.flowable.engine.RuntimeService;
-import org.flowable.engine.TaskService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -37,60 +20,21 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-class WorkflowServiceTest extends BaseMySqlTest {
+class WorkflowServiceTest extends BaseSpringTest {
 
+    @Autowired
     private WorkflowService service;
-    private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = mock(AuthService.class);
-        when(authService.currentUser()).thenReturn(
-                new AuthUser(1L, "admin", "系统管理员", 2L, "总经办",
-                        List.of("SUPER_ADMIN"), List.of("*"))
-        );
-
-        RuntimeService rt = mock(RuntimeService.class);
-        TaskService task = mock(TaskService.class);
-        RepositoryService repo = mock(RepositoryService.class);
-        HistoryService his = mock(HistoryService.class);
-        MessageService messageService = mock(MessageService.class);
-
-        SequenceService sequenceService = new SequenceService(getMapper(SysSequenceMapper.class));
-        AuditService auditService = new AuditService(
-                getMapper(AuditLoginLogMapper.class),
-                getMapper(AuditOperationLogMapper.class),
-                getMapper(SysConfigMapper.class),
-                sequenceService
-        );
-
-        service = new WorkflowService(
-                rt, task, repo, his,
-                authService,
-                auditService,
-                messageService,
-                sequenceService,
-                getMapper(WfProcessTemplateMapper.class),
-                getMapper(WfProcessVersionMapper.class),
-                getMapper(WfProcessInstanceMapper.class),
-                getMapper(WfTaskMapper.class),
-                getMapper(WfTaskRecordMapper.class),
-                getMapper(WfCcRecordMapper.class),
-                getMapper(WfDelegationMapper.class),
-                getMapper(UserMapper.class),
-                getMapper(PermUserRoleMapper.class),
-                getMapper(SysConfigMapper.class),
-                getMapper(OaLeaveMapper.class),
-                getMapper(OaExpenseMapper.class),
-                getMapper(OaSealApplyMapper.class),
-                getMapper(OaPurchaseMapper.class),
-                getMapper(ContractInfoMapper.class)
-        );
-
         seedInstance();
+    }
+
+    private void setSecurityUser(AuthUser user) {
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                user, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
     private void seedInstance() {
@@ -122,20 +66,16 @@ class WorkflowServiceTest extends BaseMySqlTest {
 
     @Test
     void addCcAndCcToMeAndMarkRead() {
-        when(authService.currentUser()).thenReturn(
-                new AuthUser(1L, "admin", "管理员", 2L, "总经办",
-                        List.of("SUPER_ADMIN"), List.of("*"))
-        );
+        setSecurityUser(new AuthUser(1L, "admin", "管理员", 2L, "总经办",
+                List.of("SUPER_ADMIN"), List.of("*")));
         Map<String, Object> r = service.addCc(new WorkflowDtos.CcAddRequest(100L, List.of(2L), "请知悉"));
         assertThat(r.get("created")).isInstanceOf(List.class);
         @SuppressWarnings("unchecked")
         List<Long> created = (List<Long>) r.get("created");
         assertThat(created).hasSize(1);
 
-        when(authService.currentUser()).thenReturn(
-                new AuthUser(2L, "user2", "User2", 2L, "总经办",
-                        List.of(), List.of())
-        );
+        setSecurityUser(new AuthUser(2L, "user2", "User2", 2L, "总经办",
+                List.of(), List.of()));
         PageResponse<Map<String, Object>> page = service.ccToMe(1, 20);
         assertThat(page.total()).isEqualTo(1);
         Long ccId = ((Number) page.items().get(0).get("id")).longValue();
@@ -147,10 +87,8 @@ class WorkflowServiceTest extends BaseMySqlTest {
 
     @Test
     void onlyStarterOrAdminCanAddCc() {
-        when(authService.currentUser()).thenReturn(
-                new AuthUser(99L, "stranger", "陌生", 2L, "总经办",
-                        List.of(), List.of())
-        );
+        setSecurityUser(new AuthUser(99L, "stranger", "陌生", 2L, "总经办",
+                List.of(), List.of()));
         assertThatThrownBy(() -> service.addCc(new WorkflowDtos.CcAddRequest(100L, List.of(2L), null)))
                 .isInstanceOf(BusinessException.class);
     }
