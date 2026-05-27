@@ -59,6 +59,18 @@ public class ContractController {
     }
 
     @PreAuthorize("hasAnyAuthority('*', 'org:create')")
+    @PostMapping("/{id}/withdraw")
+    public Map<String, Object> withdraw(@PathVariable long id) {
+        return contractService.withdraw(id);
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:create')")
+    @PostMapping("/{id}/cancel")
+    public Map<String, Object> cancel(@PathVariable long id) {
+        return contractService.cancel(id);
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:create')")
     @PostMapping("/{id}/sign")
     public Map<String, Object> sign(@PathVariable long id) {
         return contractService.signContract(id);

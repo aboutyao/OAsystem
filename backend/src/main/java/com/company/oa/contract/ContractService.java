@@ -182,6 +182,44 @@ public class ContractService {
     }
 
     @Transactional
+    public Map<String, Object> cancel(long id) {
+        Map<String, Object> row = loadContract(id);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
+        if (!DRAFT.equals(String.valueOf(row.get("status")))) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可作废");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        contractMapper.update(null, new LambdaUpdateWrapper<ContractInfo>()
+                .eq(ContractInfo::getId, id)
+                .set(ContractInfo::getStatus, CANCELLED)
+                .set(ContractInfo::getUpdatedAt, now)
+                .setSql("version = version + 1"));
+        auditService.safeRecordOperation(authService.currentUser().id(),
+                "CONTRACT_CANCEL", "CONTRACT", id, AuditService.SUCCESS, null);
+        return detail(id);
+    }
+
+    @Transactional
+    public Map<String, Object> withdraw(long id) {
+        Map<String, Object> row = loadContract(id);
+        OaPermissionUtils.assertOwner(row, authService, "此记录");
+        if (!APPROVING.equals(String.valueOf(row.get("status")))) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "仅审批中可撤回");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        contractMapper.update(null, new LambdaUpdateWrapper<ContractInfo>()
+                .eq(ContractInfo::getId, id)
+                .set(ContractInfo::getStatus, DRAFT)
+                .set(ContractInfo::getProcessInstanceId, null)
+                .set(ContractInfo::getWfInstanceId, null)
+                .set(ContractInfo::getUpdatedAt, now)
+                .setSql("version = version + 1"));
+        auditService.safeRecordOperation(authService.currentUser().id(),
+                "CONTRACT_WITHDRAW", "CONTRACT", id, AuditService.SUCCESS, null);
+        return detail(id);
+    }
+
+    @Transactional
     public Map<String, Object> signContract(long id) {
         Map<String, Object> row = loadContract(id);
         assertAdminOnly();
