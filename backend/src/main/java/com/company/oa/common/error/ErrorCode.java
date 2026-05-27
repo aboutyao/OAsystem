@@ -10,6 +10,7 @@ public final class ErrorCode {
     public static final String INTERNAL_ERROR = "INTERNAL_ERROR";
     public static final String USER_ACCOUNT_LOCKED = "USER_ACCOUNT_LOCKED";
     public static final String USER_BAD_CREDENTIALS = "USER_BAD_CREDENTIALS";
+    public static final String TOO_MANY_REQUESTS = "TOO_MANY_REQUESTS";
 
     private ErrorCode() {
     }

@@ -30,6 +30,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuditService auditService;
     private final ObjectProvider<HttpServletRequest> requestProvider;
+    private final LoginRateLimiter loginRateLimiter;
 
     public AuthService(
             UserMapper userMapper,
@@ -37,7 +38,8 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             AuditService auditService,
-            ObjectProvider<HttpServletRequest> requestProvider
+            ObjectProvider<HttpServletRequest> requestProvider,
+            LoginRateLimiter loginRateLimiter
     ) {
         this.userMapper = userMapper;
         this.authSqlMapper = authSqlMapper;
@@ -45,15 +47,21 @@ public class AuthService {
         this.jwtService = jwtService;
         this.auditService = auditService;
         this.requestProvider = requestProvider;
+        this.loginRateLimiter = loginRateLimiter;
     }
 
     public LoginResponse login(AuthController.LoginRequest request) {
         String ip = clientIp();
         String ua = userAgent();
 
+        if (ip != null && loginRateLimiter.isBlocked(ip)) {
+            throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS, "登录尝试次数过多，请稍后再试");
+        }
+
         Map<String, Object> userRow = authSqlMapper.selectUserByUsername(request.username());
         if (userRow == null) {
             safeRecordLoginFailure(request.username(), "账号或密码错误", ip, ua);
+            loginRateLimiter.recordFailure(ip);
             throw new BusinessException(ErrorCode.USER_BAD_CREDENTIALS, "账号或密码错误");
         }
 
@@ -62,6 +70,7 @@ public class AuthService {
             assertLoginAllowed(userRow);
         } catch (BusinessException ex) {
             safeRecordLoginFailure(request.username(), ex.getMessage(), ip, ua);
+            loginRateLimiter.recordFailure(ip);
             throw ex;
         }
 
@@ -69,10 +78,12 @@ public class AuthService {
         if (!passwordEncoder.matches(request.password(), storedHash)) {
             recordLoginFailure(userId);
             safeRecordLoginFailure(request.username(), "账号或密码错误", ip, ua);
+            loginRateLimiter.recordFailure(ip);
             throw new BusinessException(ErrorCode.USER_BAD_CREDENTIALS, "账号或密码错误");
         }
 
         userMapper.updateLoginSuccess(userId);
+        loginRateLimiter.reset(ip);
 
         AuthUser user = loadUser(userId);
         safeRecordLoginSuccess(userId, user.username(), ip, ua);
