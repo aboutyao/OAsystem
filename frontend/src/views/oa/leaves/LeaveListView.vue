@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
+import { ElMessage } from 'element-plus'
 import { listLeaves } from '../../../api/oa-leaves'
 import type { JsonObject } from '../../../api/types'
 import { usePaginatedList } from '../../../composables/usePaginatedList'
@@ -45,6 +47,27 @@ function goCreate() {
   router.push('/oa/leaves/create')
 }
 
+async function handleExport() {
+  try {
+    const token = localStorage.getItem('oa_access_token')
+    const baseURL = (import.meta.env.VITE_API_BASE_URL as string) || '/api'
+    const res = await axios.post(`${baseURL}/oa/leaves/export`, {}, {
+      responseType: 'blob',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = '请假列表.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '导出失败')
+  }
+}
+
 function goDetail(row: JsonObject) {
   router.push(`/oa/leaves/${Number(row.id)}`)
 }
@@ -79,6 +102,9 @@ const statusCounts = computed(() => {
       </div>
       <el-button type="primary" @click="goCreate">
         <el-icon><Plus /></el-icon>新建请假
+      </el-button>
+      <el-button @click="handleExport">
+        <el-icon><Download /></el-icon>导出
       </el-button>
     </div>
 

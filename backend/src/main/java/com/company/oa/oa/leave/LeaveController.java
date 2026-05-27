@@ -1,7 +1,9 @@
 package com.company.oa.oa.leave;
 
 import com.company.oa.common.api.PageResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -76,5 +80,20 @@ public class LeaveController {
             @RequestParam String endAt
     ) {
         return leaveService.calculateDuration(startAt, endAt);
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:view')")
+    @GetMapping("/team-calendar")
+    public List<Map<String, Object>> teamLeaveCalendar(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end
+    ) {
+        return leaveService.teamLeaveCalendar(start, end);
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:view')")
+    @PostMapping("/export")
+    public void exportLeaves(@RequestBody(required = false) Map<String, Object> filter, HttpServletResponse response) {
+        leaveService.exportLeaves(filter, response);
     }
 }

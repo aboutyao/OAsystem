@@ -9,12 +9,14 @@ import {
   getDashboardCcToMe,
   getDashboardNotices,
   getDashboardQuickActions,
+  getMyLeaveBalance,
   type DashboardSummary,
   type DashboardTodo,
   type DashboardStarted,
   type DashboardCcItem,
   type DashboardNotice,
   type QuickAction,
+  type LeaveBalanceItem,
 } from '../../api/dashboard'
 import { formatDisplayDateTime, statusLabel } from '../oa/oa-shared'
 import { Refresh } from '@element-plus/icons-vue'
@@ -28,7 +30,20 @@ const started = ref<DashboardStarted[]>([])
 const ccItems = ref<DashboardCcItem[]>([])
 const notices = ref<DashboardNotice[]>([])
 const quickActions = ref<QuickAction[]>([])
+const leaveBalances = ref<LeaveBalanceItem[]>([])
 const loading = ref(false)
+
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  ANNUAL: '年假',
+  SICK: '病假',
+  PERSONAL: '事假',
+  MATERNITY: '产假',
+  PATERNITY: '陪产假',
+  MARRIAGE: '婚假',
+  BEREAVEMENT: '丧假',
+}
+
+const pendingApprovals = computed(() => summary.value?.todoCount ?? 0)
 
 const greeting = computed(() => {
   const h = new Date().getHours()
@@ -59,13 +74,14 @@ const QUICK_ACTION_ICONS: Record<string, string> = {
 async function refresh() {
   loading.value = true
   try {
-    const [s, t, st, cc, n, a] = await Promise.all([
+    const [s, t, st, cc, n, a, lb] = await Promise.all([
       getDashboardSummary(),
       getDashboardTodos(8),
       getDashboardStarted(8),
       getDashboardCcToMe(8),
       getDashboardNotices(8),
       getDashboardQuickActions(),
+      getMyLeaveBalance(),
     ])
     summary.value = s
     todos.value = t
@@ -73,6 +89,7 @@ async function refresh() {
     ccItems.value = cc
     notices.value = n
     quickActions.value = a
+    leaveBalances.value = lb
   } finally {
     loading.value = false
   }
@@ -138,6 +155,58 @@ const statCards = computed(() => [
         <el-statistic :value="card.value" class="stat-card__value" />
         <div class="stat-card__label">{{ card.label }}</div>
       </div>
+    </section>
+
+    <!-- Personal Leave Balance -->
+    <section v-if="leaveBalances.length" class="leave-balance-section">
+      <h3 class="oa-section-title">我的假期余额</h3>
+      <div class="leave-balance-grid">
+        <div
+          v-for="item in leaveBalances"
+          :key="item.leaveType"
+          class="leave-balance-card"
+        >
+          <div class="leave-balance-card__header">
+            <span class="leave-balance-card__type">{{ LEAVE_TYPE_LABELS[item.leaveType] ?? item.typeName }}</span>
+            <el-tag
+              v-if="item.pendingDays > 0"
+              size="small"
+              type="warning"
+              effect="light"
+              round
+            >
+              审批中 {{ item.pendingDays }} 天
+            </el-tag>
+          </div>
+          <div class="leave-balance-card__body">
+            <div class="leave-balance-card__remaining">
+              <span class="leave-balance-card__number">{{ item.remainingDays }}</span>
+              <span class="leave-balance-card__unit">天剩余</span>
+            </div>
+            <el-progress
+              :percentage="item.totalDays > 0 ? Math.round((item.usedDays / item.totalDays) * 100) : 0"
+              :stroke-width="6"
+              :color="item.remainingDays <= 1 ? '#F56C6C' : '#67C23A'"
+              style="flex: 1; margin-left: 16px"
+            />
+          </div>
+          <div class="leave-balance-card__footer">
+            已用 {{ item.usedDays }} 天 / 共 {{ item.totalDays }} 天
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pending Approval Alert -->
+    <section v-if="pendingApprovals > 0" class="pending-alert">
+      <div class="pending-alert__icon">
+        <el-icon :size="20"><Bell /></el-icon>
+      </div>
+      <div class="pending-alert__info">
+        <span class="pending-alert__title">您有 <strong>{{ pendingApprovals }}</strong> 条待办审批</span>
+        <span class="pending-alert__sub">请尽快处理，避免流程延误</span>
+      </div>
+      <el-button type="primary" size="small" @click="go('/todos')">去处理</el-button>
     </section>
 
     <!-- Quick Actions -->
@@ -331,5 +400,109 @@ const statCards = computed(() => [
   font-size: 12px;
   color: var(--oa-text-muted);
   white-space: nowrap;
+}
+
+/* Leave Balance */
+.leave-balance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.leave-balance-card {
+  background: var(--oa-bg-white);
+  border: 1px solid var(--oa-border-light);
+  border-radius: var(--oa-radius-md);
+  padding: 16px;
+  transition: all var(--oa-transition);
+}
+
+.leave-balance-card:hover {
+  border-color: var(--oa-primary-lighter);
+  box-shadow: var(--oa-shadow-sm);
+}
+
+.leave-balance-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.leave-balance-card__type {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--oa-text-primary);
+}
+
+.leave-balance-card__body {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.leave-balance-card__remaining {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.leave-balance-card__number {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--oa-primary);
+  line-height: 1;
+}
+
+.leave-balance-card__unit {
+  font-size: 12px;
+  color: var(--oa-text-muted);
+}
+
+.leave-balance-card__footer {
+  font-size: 12px;
+  color: var(--oa-text-muted);
+}
+
+/* Pending Approval Alert */
+.pending-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #fff7e6, #fff1cc);
+  border: 1px solid #ffd666;
+  border-radius: var(--oa-radius-md);
+}
+
+.pending-alert__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #faad14;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pending-alert__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.pending-alert__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--oa-text-primary);
+}
+
+.pending-alert__sub {
+  font-size: 12px;
+  color: var(--oa-text-secondary);
 }
 </style>

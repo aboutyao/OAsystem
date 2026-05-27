@@ -18,13 +18,17 @@ import com.company.oa.org.mapper.UserMapper;
 import com.company.oa.workflow.WorkflowDtos;
 import com.company.oa.workflow.WorkflowService;
 import com.company.oa.common.service.SequenceService;
+import com.alibaba.excel.EasyExcel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -279,6 +283,51 @@ public class ExpenseService {
                 "expenseNo", row.get("expenseNo"),
                 "printUrl", "/api/oa/expenses/" + id + "/print"
         );
+    }
+
+    @Transactional(readOnly = true)
+    public void exportExpenses(Map<String, Object> filter, HttpServletResponse response) {
+        AuthUser user = authService.currentUser();
+        LambdaQueryWrapper<OaExpense> qw = new LambdaQueryWrapper<>();
+        if (user.permissions().contains("*") && filter != null && filter.containsKey("applicantId")) {
+            qw.eq(OaExpense::getCreatedBy, ((Number) filter.get("applicantId")).longValue());
+        } else {
+            qw.eq(OaExpense::getCreatedBy, user.id());
+        }
+        if (filter != null && filter.containsKey("status")) {
+            qw.eq(OaExpense::getStatus, String.valueOf(filter.get("status")));
+        }
+        qw.orderByDesc(OaExpense::getId);
+        List<OaExpense> entities = expenseMapper.selectList(qw);
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (OaExpense e : entities) {
+            rows.add(toMap(e));
+        }
+
+        try {
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding("utf-8");
+            String fileName = URLEncoder.encode("报销列表", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            response.setHeader("Content-Disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+            EasyExcel.write(response.getOutputStream())
+                    .head(List.of(
+                            List.of("编号", "单号", "类型", "金额", "付款状态", "状态", "创建时间", "更新时间")
+                    ))
+                    .sheet("报销列表")
+                    .doWrite(rows.stream().map(r -> List.of(
+                            String.valueOf(r.get("id")),
+                            String.valueOf(r.get("expenseNo")),
+                            String.valueOf(r.get("expenseType")),
+                            String.valueOf(r.get("totalAmount")),
+                            String.valueOf(r.get("paymentStatus")),
+                            String.valueOf(r.get("status")),
+                            String.valueOf(r.get("createdAt")),
+                            String.valueOf(r.get("updatedAt"))
+                    )).toList());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "导出失败: " + e.getMessage());
+        }
     }
 
     private Map<String, Object> loadExpenseHeader(long id) {

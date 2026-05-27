@@ -15,3 +15,7 @@ export const cancelExpense = crud.cancel
 export function markPaidExpense(id: number) {
   return http.post<unknown, JsonObject>(`/oa/expenses/${id}/mark-paid`)
 }
+
+export function exportExpenses(filter?: Record<string, unknown>) {
+  return http.post('/oa/expenses/export', filter ?? {}, { responseType: 'blob' })
+}

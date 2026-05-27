@@ -77,3 +77,17 @@ export function getDashboardNotices(limit = 10) {
 export function getDashboardQuickActions() {
   return http.get<unknown, QuickAction[]>('/dashboard/quick-actions')
 }
+
+export interface LeaveBalanceItem {
+  leaveType: string
+  typeName: string
+  daysPerYear: number
+  totalDays: number
+  usedDays: number
+  pendingDays: number
+  remainingDays: number
+}
+
+export function getMyLeaveBalance() {
+  return http.get<unknown, LeaveBalanceItem[]>('/leave-balance/my')
+}

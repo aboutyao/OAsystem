@@ -17,3 +17,11 @@ export function calculateLeaveDuration(startAt: string, endAt: string) {
     params: { startAt, endAt },
   })
 }
+
+export function teamLeaveCalendar(start: string, end: string) {
+  return http.get<unknown, JsonObject[]>('/oa/leaves/team-calendar', { params: { start, end } })
+}
+
+export function exportLeaves(filter?: Record<string, unknown>) {
+  return http.post('/oa/leaves/export', filter ?? {}, { responseType: 'blob' })
+}

@@ -89,6 +89,7 @@ import RuleGroupsView from '../views/rule/RuleGroupsView.vue'
 import RuleEditView from '../views/rule/RuleEditView.vue'
 import RuleVersionsView from '../views/rule/RuleVersionsView.vue'
 import LeaveReportView from '../views/oa/leaves/LeaveReportView.vue'
+import TeamCalendarView from '../views/oa/leaves/TeamCalendarView.vue'
 import ExpenseFinanceReviewView from '../views/oa/expenses/ExpenseFinanceReviewView.vue'
 import ExpenseReportView from '../views/oa/expenses/ExpenseReportView.vue'
 import SealLedgerView from '../views/oa/seals/SealLedgerView.vue'
@@ -109,6 +110,7 @@ const oaRoutes: RouteRecordRaw[] = [
   },
   { path: 'oa/leaves/:id', name: 'leave-detail', component: LeaveDetailView, meta: { title: '请假详情', module: 'oa' } },
   { path: 'oa/leaves/report', name: 'leave-report', component: LeaveReportView, meta: { title: '请假报表', module: 'oa' } },
+  { path: 'oa/leaves/team-calendar', name: 'leave-team-calendar', component: TeamCalendarView, meta: { title: '团队请假日历', module: 'oa' } },
   { path: 'oa/leaves', name: 'leave-list', component: LeaveListView, meta: { title: '请假', module: 'oa' } },
 
   {

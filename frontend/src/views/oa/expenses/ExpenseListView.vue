@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
+import { ElMessage } from 'element-plus'
 import { listExpenses } from '../../../api/oa-expenses'
 import type { JsonObject } from '../../../api/types'
 import { usePaginatedList } from '../../../composables/usePaginatedList'
@@ -13,6 +15,27 @@ onMounted(load)
 
 function goCreate() {
   router.push('/oa/expenses/create')
+}
+
+async function handleExport() {
+  try {
+    const token = localStorage.getItem('oa_access_token')
+    const baseURL = (import.meta.env.VITE_API_BASE_URL as string) || '/api'
+    const res = await axios.post(`${baseURL}/oa/expenses/export`, {}, {
+      responseType: 'blob',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = '报销列表.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '导出失败')
+  }
 }
 
 function goDetail(row: JsonObject) {
@@ -48,6 +71,9 @@ const statusCounts = computed(() => {
         <p class="muted">本人报销单；合计金额须与明细一致。</p>
       </div>
       <el-button type="primary" @click="goCreate">新建报销</el-button>
+      <el-button @click="handleExport">
+        <el-icon><Download /></el-icon>导出
+      </el-button>
     </div>
 
     <el-card shadow="never">

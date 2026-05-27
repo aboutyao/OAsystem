@@ -1,6 +1,7 @@
 package com.company.oa.oa.leave;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.alibaba.excel.EasyExcel;
 import com.company.oa.audit.AuditService;
 import com.company.oa.auth.AuthService;
 import com.company.oa.auth.AuthUser;
@@ -18,9 +19,12 @@ import com.company.oa.oa.mapper.OaLeaveMapper;
 import com.company.oa.workflow.WorkflowDtos;
 import com.company.oa.system.WorkCalendarService;
 import com.company.oa.workflow.WorkflowService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -223,6 +227,79 @@ public class LeaveService {
                 "durationHours", hours,
                 "durationDays", days
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> teamLeaveCalendar(LocalDate start, LocalDate end) {
+        // Query approved leaves overlapping the date range
+        // overlap condition: leave.startAt <= end AND leave.endAt >= start
+        LambdaQueryWrapper<OaLeave> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(OaLeave::getDeleted, 0);
+        wrapper.eq(OaLeave::getStatus, "APPROVED");
+        wrapper.le(OaLeave::getStartAt, end.atStartOfDay().plusDays(1).minusNanos(1));
+        wrapper.ge(OaLeave::getEndAt, start.atStartOfDay());
+        List<OaLeave> leaves = oaLeaveMapper.selectList(wrapper);
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (OaLeave e : leaves) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("userId", e.getCreatedBy());
+            item.put("userName", e.getCreatedNameSnapshot());
+            item.put("leaveType", e.getLeaveType());
+            item.put("startAt", e.getStartAt());
+            item.put("endAt", e.getEndAt());
+            item.put("durationDays", e.getDurationDays());
+            result.add(item);
+        }
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public void exportLeaves(Map<String, Object> filter, HttpServletResponse response) {
+        AuthUser user = authService.currentUser();
+        LambdaQueryWrapper<OaLeave> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(OaLeave::getDeleted, 0);
+        if (user.permissions().contains("*") && filter != null && filter.containsKey("applicantId")) {
+            wrapper.eq(OaLeave::getCreatedBy, ((Number) filter.get("applicantId")).longValue());
+        } else {
+            wrapper.eq(OaLeave::getCreatedBy, user.id());
+        }
+        if (filter != null && filter.containsKey("status")) {
+            wrapper.eq(OaLeave::getStatus, String.valueOf(filter.get("status")));
+        }
+        wrapper.orderByDesc(OaLeave::getId);
+        List<OaLeave> entities = oaLeaveMapper.selectList(wrapper);
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (OaLeave e : entities) {
+            rows.add(entityToMap(e));
+        }
+
+        try {
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding("utf-8");
+            String fileName = URLEncoder.encode("请假列表", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            response.setHeader("Content-Disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+            EasyExcel.write(response.getOutputStream())
+                    .head(List.of(
+                            List.of("编号", "类型", "开始时间", "结束时间", "时长(天)", "事由", "状态", "申请人", "部门", "创建时间")
+                    ))
+                    .sheet("请假列表")
+                    .doWrite(rows.stream().map(r -> List.of(
+                            String.valueOf(r.get("id")),
+                            String.valueOf(r.get("leaveType")),
+                            String.valueOf(r.get("startAt")),
+                            String.valueOf(r.get("endAt")),
+                            String.valueOf(r.get("durationDays")),
+                            String.valueOf(r.get("reason")),
+                            String.valueOf(r.get("status")),
+                            String.valueOf(r.get("createdName")),
+                            String.valueOf(r.get("createdDeptName")),
+                            String.valueOf(r.get("createdAt"))
+                    )).toList());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "导出失败: " + e.getMessage());
+        }
     }
 
     private Map<String, Object> loadLeave(long id) {

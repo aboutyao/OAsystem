@@ -1,0 +1,8 @@
+INSERT INTO leave_type (id, type_code, type_name, days_per_year, is_paid, requires_proof, sort_order, status, created_at, updated_at, deleted) VALUES
+(1, 'ANNUAL', '年假', 5, 1, 0, 1, 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+(2, 'SICK', '病假', 0, 1, 1, 2, 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+(3, 'PERSONAL', '事假', 0, 0, 0, 3, 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+(4, 'MATERNITY', '产假', 0, 1, 1, 4, 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+(5, 'PATERNITY', '陪产假', 0, 1, 1, 5, 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+(6, 'MARRIAGE', '婚假', 0, 1, 1, 6, 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+(7, 'BEREAVEMENT', '丧假', 0, 1, 0, 7, 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
