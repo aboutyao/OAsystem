@@ -132,22 +132,17 @@ npm run dev
 ### Docker 一键部署
 
 ```bash
-# 1. 配置环境变量
-cat > .env << EOF
-MYSQL_ROOT_PASSWORD=your_root_password
-MYSQL_USER=oa_app
-MYSQL_PASSWORD=your_db_password
-OA_JWT_SECRET=your_jwt_secret_at_least_32_bytes
-OA_INITIAL_ADMIN_PASSWORD=Admin@123!
-EOF
+# 1. 配置环境变量（可选，已有默认值用于体验）
+cp .env.example .env
+# 编辑 .env 修改密码和密钥
 
-# 2. 启动所有服务
+# 2. 启动所有服务（首次构建约需 5-10 分钟）
 docker compose up -d --build
 
 # 3. 访问
-# 前端: http://localhost
+# 前端: http://localhost:8090
 # API:  http://localhost:8080
-# 默认账号: admin / Admin@123!
+# 默认账号: admin / Admin@123
 ```
 
 ### 远程服务器部署
