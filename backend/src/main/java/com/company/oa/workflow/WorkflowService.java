@@ -443,7 +443,7 @@ public class WorkflowService {
         long instanceId = ((Number) inst.get("wfInstanceId")).longValue();
         boolean superAdmin = user.permissions().contains("*");
         long starterId = ((Number) inst.get("starterId")).longValue();
-        if (!superAdmin && user.id() != starterId) {
+        if (!superAdmin && !user.id().equals(starterId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "仅发起人或超级管理员可抄送");
         }
         LocalDateTime now = LocalDateTime.now();
@@ -784,7 +784,7 @@ public class WorkflowService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "委托不存在");
         }
         boolean superAdmin = user.permissions().contains("*");
-        if (!superAdmin && user.id() != d.getDelegatorId()) {
+        if (!superAdmin && !user.id().equals(d.getDelegatorId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "仅委托人或超级管理员可取消委托");
         }
         if (!DELEGATION_ACTIVE.equals(d.getStatus())) {
@@ -847,7 +847,7 @@ public class WorkflowService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅审批中的流程可撤回");
         }
         long starterId = ((Number) inst.get("starterId")).longValue();
-        if (user.id() != starterId) {
+        if (!user.id().equals(starterId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "仅发起人可撤回");
         }
         Long approved = taskRecordMapper.countByInstanceIdAndAction(wfInstanceId, "APPROVE");
@@ -875,7 +875,7 @@ public class WorkflowService {
         }
         long starterId = ((Number) inst.get("starterId")).longValue();
         boolean superAdmin = user.permissions().contains("*");
-        if (!superAdmin && user.id() != starterId) {
+        if (!superAdmin && !user.id().equals(starterId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "仅发起人或超级管理员可终止流程");
         }
         String pid = String.valueOf(inst.get("processInstanceId"));

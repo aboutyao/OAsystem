@@ -15,7 +15,7 @@
 | 前端框架 | Vue 3.5 + TypeScript |
 | UI 组件 | Element Plus 2.13 |
 | 状态管理 | Pinia 3.0 |
-| 构建工具 | Vite 6 |
+| 构建工具 | Vite 5 |
 | 图表 | ECharts 6 |
 | 部署 | Docker + Docker Compose |
 
@@ -106,8 +106,7 @@ OAsystem/
 │   ├── nginx.conf
 │   └── Dockerfile
 ├── docker-compose.yml          # 一键部署编排
-├── deploy.sh                   # 远程服务器部署脚本
-└── server-deploy.sh            # 服务器端部署脚本
+└── .env.example                # 环境变量模板
 ```
 
 ## 快速开始
@@ -154,13 +153,10 @@ docker compose up -d --build
 ### 远程服务器部署
 
 ```bash
-# 方式一：使用部署脚本
-chmod +x deploy.sh && ./deploy.sh
-
-# 方式二：手动部署
+# 手动部署
 scp -r ./* root@your-server:/opt/oa-system/
 ssh root@your-server
-cd /opt/oa-system && bash server-deploy.sh
+cd /opt/oa-system && docker compose up -d --build
 ```
 
 ## API 接口

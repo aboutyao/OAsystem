@@ -42,6 +42,10 @@ export function authMenus() {
   return http.get<unknown, AuthMenuItem[]>('/auth/menus')
 }
 
+export function logout() {
+  return http.post<unknown, void>('/auth/logout')
+}
+
 export function changePassword(oldPassword: string, newPassword: string) {
   return http.post<unknown, { changed: boolean }>('/auth/change-password', { oldPassword, newPassword })
 }

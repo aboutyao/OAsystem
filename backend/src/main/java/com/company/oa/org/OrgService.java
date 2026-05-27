@@ -228,7 +228,7 @@ public class OrgService {
                 new LambdaQueryWrapper<User>()
                         .eq(User::getDeleted, 0)
                         .and(w -> w.eq(User::getMainDeptId, deptId)
-                                .or().exists("select 1 from org_user_dept ud where ud.user_id = org_user.id and ud.dept_id = " + deptId)));
+                                .or().exists("select 1 from org_user_dept ud where ud.user_id = org_user.id and ud.dept_id = {0}", deptId)));
         List<Map<String, Object>> items = userMapper.selectDeptUsers(deptId, ps[1], (ps[0] - 1) * ps[1]);
         return new PageResponse<>(ps[0], ps[1], total, items);
     }

@@ -35,17 +35,14 @@ public class AuthController {
     public Map<String, Object> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
-            long remainingSeconds = jwtService.getRemainingSeconds(token);
-            jwtBlacklistService.addToBlacklist(token, remainingSeconds);
+            jwtBlacklistService.addToBlacklist(token);
         }
         return Map.of("success", true);
     }
 
     @PostMapping("/change-password")
-    public Map<String, Object> changePassword(@RequestBody Map<String, String> body) {
-        String oldPassword = body.get("oldPassword");
-        String newPassword = body.get("newPassword");
-        authService.changePassword(oldPassword, newPassword);
+    public Map<String, Object> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request.oldPassword(), request.newPassword());
         return Map.of("changed", true);
     }
 

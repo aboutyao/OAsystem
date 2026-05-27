@@ -50,14 +50,6 @@ export function formatDisplayDate(v: unknown): string {
   return d ? d.toLocaleDateString('zh-CN') : '—'
 }
 
-/** For `<el-date-picker value-format>` / Java `LocalDateTime` */
-export function toInputDateTime(v: unknown): string {
-  const d = parseToDate(v)
-  if (!d) return ''
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
-}
-
 export function toInputDate(v: unknown): string {
   const d = parseToDate(v)
   if (!d) return ''

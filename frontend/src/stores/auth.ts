@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { authMenus, login, me, type AuthMenuItem, type CurrentUser } from '../api/auth'
+import { authMenus, login, logout as apiLogout, me, type AuthMenuItem, type CurrentUser } from '../api/auth'
 
 const TOKEN_KEY = 'oa_access_token'
 
@@ -132,7 +132,12 @@ export const useAuthStore = defineStore('auth', () => {
     await loadMenus()
   }
 
-  function signOut() {
+  async function signOut() {
+    try {
+      await apiLogout()
+    } catch {
+      // 即使后端调用失败也继续清理本地状态
+    }
     token.value = null
     user.value = null
     menus.value = []

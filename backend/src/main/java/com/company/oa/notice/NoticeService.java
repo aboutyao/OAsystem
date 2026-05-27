@@ -314,7 +314,7 @@ public class NoticeService {
     private void assertOwner(Map<String, Object> row) {
         AuthUser user = authService.currentUser();
         long owner = ((Number) row.get("createdBy")).longValue();
-        if (!user.permissions().contains("*") && user.id() != owner) {
+        if (!user.permissions().contains("*") && !user.id().equals(owner)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此公告");
         }
     }

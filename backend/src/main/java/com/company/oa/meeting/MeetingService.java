@@ -169,7 +169,7 @@ public class MeetingService {
             orgVal = row.get("organizer_id");
         }
         long orgId = ((Number) orgVal).longValue();
-        if (!user.permissions().contains("*") && user.id() != orgId) {
+        if (!user.permissions().contains("*") && !user.id().equals(orgId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "仅组织人可取消");
         }
         LocalDateTime now = LocalDateTime.now();

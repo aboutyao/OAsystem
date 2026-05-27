@@ -72,19 +72,6 @@ public class JwtService {
         return expiresInSeconds;
     }
 
-    public long getRemainingSeconds(String token) {
-        try {
-            String[] parts = token.split("\\.");
-            if (parts.length != 3) return 0;
-            Map<?, ?> payload = objectMapper.readValue(Base64.getUrlDecoder().decode(parts[1]), Map.class);
-            long exp = ((Number) payload.get("exp")).longValue();
-            long remaining = exp - Instant.now().getEpochSecond();
-            return Math.max(0, remaining);
-        } catch (Exception ex) {
-            return 0;
-        }
-    }
-
     private String sign(Map<String, Object> header, Map<String, Object> payload) {
         try {
             String encodedHeader = base64Url(objectMapper.writeValueAsBytes(header));

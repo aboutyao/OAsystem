@@ -86,8 +86,8 @@ async function loadNotificationCount() {
   }
 }
 
-function logout() {
-  authStore.signOut()
+async function logout() {
+  await authStore.signOut()
   router.push('/login')
 }
 
