@@ -19,3 +19,19 @@ export function markPaidExpense(id: number) {
 export function exportExpenses(filter?: Record<string, unknown>) {
   return http.post('/oa/expenses/export', filter ?? {}, { responseType: 'blob' })
 }
+
+export function uploadExpenseAttachment(expenseId: number, file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return http.post<unknown, JsonObject>(`/oa/expenses/${expenseId}/attachments`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+export function listExpenseAttachments(expenseId: number) {
+  return http.get<unknown, JsonObject[]>(`/oa/expenses/${expenseId}/attachments`)
+}
+
+export function deleteExpenseAttachment(expenseId: number, attachmentId: number) {
+  return http.delete(`/oa/expenses/${expenseId}/attachments/${attachmentId}`)
+}

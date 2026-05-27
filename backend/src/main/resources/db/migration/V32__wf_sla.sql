@@ -1,0 +1,3 @@
+ALTER TABLE wf_process_instance ADD COLUMN sla_deadline DATETIME DEFAULT NULL COMMENT 'SLA截止时间';
+ALTER TABLE wf_process_instance ADD COLUMN sla_breached TINYINT NOT NULL DEFAULT 0 COMMENT '是否已超时';
+ALTER TABLE wf_task ADD COLUMN sla_deadline DATETIME DEFAULT NULL COMMENT '任务SLA截止时间';

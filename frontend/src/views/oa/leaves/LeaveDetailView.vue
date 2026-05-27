@@ -3,10 +3,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { cancelLeave, getLeave, submitLeave, withdrawLeave } from '../../../api/oa-leaves'
-import { instanceTimeline } from '../../../api/workflow'
+import { instanceDetail, instanceTimeline } from '../../../api/workflow'
 import type { JsonObject } from '../../../api/types'
 import { useOaActions } from '../../../composables/useOaActions'
 import { formatDisplayDateTime, statusLabel } from '../oa-shared'
+import OaApprovalProgress from '../../../components/OaApprovalProgress.vue'
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   ANNUAL: '年假',
@@ -29,6 +30,7 @@ const loading = ref(true)
 const row = ref<JsonObject | null>(null)
 const timeline = ref<JsonObject[]>([])
 const timelineLoading = ref(false)
+const wfInstance = ref<JsonObject | null>(null)
 
 const id = computed(() => Number(route.params.id))
 const status = computed(() => (row.value ? String(row.value.status ?? '') : ''))
@@ -50,9 +52,15 @@ async function loadTimeline() {
   if (!wfId) return
   timelineLoading.value = true
   try {
-    timeline.value = await instanceTimeline(Number(wfId))
+    const [timelineData, instanceData] = await Promise.all([
+      instanceTimeline(Number(wfId)),
+      instanceDetail(Number(wfId)),
+    ])
+    timeline.value = timelineData
+    wfInstance.value = instanceData
   } catch {
     timeline.value = []
+    wfInstance.value = null
   } finally {
     timelineLoading.value = false
   }
@@ -205,29 +213,18 @@ const activeStep = computed(() => {
         />
       </el-steps>
 
-      <el-timeline v-if="timeline.length > 0">
-        <el-timeline-item
-          v-for="(item, idx) in timeline"
-          :key="idx"
-          :timestamp="formatDisplayDateTime(item.operatedAt)"
-          :color="actionColor(String(item.action ?? ''))"
-          placement="top"
-        >
-          <div class="oa-timeline-item">
-            <div class="oa-timeline-item__header">
-              <el-icon :color="actionColor(String(item.action ?? ''))"><component :is="actionIcon(String(item.action ?? ''))" /></el-icon>
-              <strong>{{ item.operatorName ?? '系统' }}</strong>
-              <span class="muted">在「{{ item.nodeName ?? '—' }}」</span>
-              <el-tag effect="light" size="small" :type="item.action === 'APPROVE' ? 'success' : item.action === 'REJECT' ? 'danger' : 'info'">
-                {{ item.action ?? '—' }}
-              </el-tag>
-            </div>
-            <div v-if="item.comment" class="oa-timeline-item__comment">{{ item.comment }}</div>
-          </div>
-        </el-timeline-item>
-      </el-timeline>
-
-      <el-empty v-else description="暂无审批记录" :image-size="80" />
+      <OaApprovalProgress
+        :timeline="timeline.map((item: JsonObject) => ({
+          action: String(item.action ?? ''),
+          operatorName: String(item.operatorName ?? '系统'),
+          nodeName: item.nodeName ? String(item.nodeName) : undefined,
+          operatedAt: formatDisplayDateTime(item.operatedAt),
+          comment: item.comment ? String(item.comment) : undefined,
+        }))"
+        :current-node-name="wfInstance?.currentNodeName ? String(wfInstance.currentNodeName) : undefined"
+        :sla-deadline="wfInstance?.slaDeadline ? String(wfInstance.slaDeadline) : undefined"
+        :sla-breached="wfInstance?.slaBreached as boolean | number | undefined"
+      />
     </el-card>
   </div>
 </template>

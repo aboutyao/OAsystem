@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { createExpense, getExpense, updateExpense } from '../../../api/oa-expenses'
+import { createExpense, getExpense, updateExpense, uploadExpenseAttachment, listExpenseAttachments, deleteExpenseAttachment } from '../../../api/oa-expenses'
 import type { JsonObject } from '../../../api/types'
 import { toInputDate } from '../oa-shared'
 
@@ -90,6 +90,68 @@ function removeItem(i: number) {
   items.value.forEach((r, idx) => (r.sortOrder = idx))
 }
 
+/* --- attachments --- */
+type AttachmentRow = {
+  id: number
+  fileName: string
+  filePath: string
+  fileSize: number
+  mimeType: string
+  createdAt: string
+}
+
+const attachments = ref<AttachmentRow[]>([])
+const uploadFileList = ref<{ file: File; uploading: boolean }[]>([])
+
+async function handleUploadAttachment(options: { file: File }) {
+  if (!isEdit.value) {
+    ElMessage.warning('请先保存报销单后再上传附件')
+    return
+  }
+  const uploadItem = { file: options.file, uploading: true }
+  uploadFileList.value.push(uploadItem)
+  try {
+    await uploadExpenseAttachment(id.value, options.file)
+    ElMessage.success('上传成功')
+    await loadAttachments()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '上传失败')
+  } finally {
+    uploadItem.uploading = false
+  }
+}
+
+async function handleDeleteAttachment(attachmentId: number) {
+  try {
+    await ElMessageBox.confirm('确定删除此附件？', '提示', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await deleteExpenseAttachment(id.value, attachmentId)
+    ElMessage.success('已删除')
+    await loadAttachments()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+  }
+}
+
+async function loadAttachments() {
+  if (!isEdit.value) return
+  try {
+    const list = await listExpenseAttachments(id.value)
+    attachments.value = (list as unknown as AttachmentRow[]) || []
+  } catch {
+    // silent
+  }
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / 1048576).toFixed(1) + ' MB'
+}
+
 onMounted(async () => {
   if (!isEdit.value) return
   loading.value = true
@@ -114,6 +176,7 @@ onMounted(async () => {
         sortOrder: Number(r.sortOrder ?? idx),
       }))
     }
+    await loadAttachments()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
     router.push('/oa/expenses')
@@ -224,6 +287,33 @@ async function onSave() {
             </el-table-column>
           </el-table>
           <el-button class="oa-mt" @click="addItem">添加一行</el-button>
+        </el-form-item>
+
+        <el-form-item label="报销附件">
+          <el-upload
+            v-if="isEdit"
+            :http-request="handleUploadAttachment"
+            :show-file-list="false"
+            accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx"
+          >
+            <el-button type="primary" plain>上传附件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">支持 jpg/png/pdf/doc/xls 格式，单个文件不超过 20MB</div>
+            </template>
+          </el-upload>
+          <div v-else class="el-upload__tip">请先保存报销单后再上传附件</div>
+          <div v-if="attachments.length" style="margin-top: 8px; width: 100%">
+            <div
+              v-for="att in attachments"
+              :key="att.id"
+              style="display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f0f0f0"
+            >
+              <el-icon style="color: #909399"><Document /></el-icon>
+              <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ att.fileName }}</span>
+              <span style="color: #909399; font-size: 12px">{{ formatFileSize(att.fileSize) }}</span>
+              <el-button link type="danger" size="small" @click="handleDeleteAttachment(att.id)">删除</el-button>
+            </div>
+          </div>
         </el-form-item>
 
         <el-form-item>

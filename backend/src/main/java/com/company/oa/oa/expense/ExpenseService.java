@@ -11,7 +11,10 @@ import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
 import com.company.oa.entity.oa.OaExpense;
+import com.company.oa.entity.oa.OaExpenseAttachment;
 import com.company.oa.entity.oa.OaExpenseItem;
+import com.company.oa.file.MinioStorageService;
+import com.company.oa.oa.mapper.OaExpenseAttachmentMapper;
 import com.company.oa.oa.mapper.OaExpenseItemMapper;
 import com.company.oa.oa.mapper.OaExpenseMapper;
 import com.company.oa.org.mapper.UserMapper;
@@ -35,6 +38,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.web.multipart.MultipartFile;
+
 @Service
 public class ExpenseService {
     private static final String DRAFT = "DRAFT";
@@ -46,33 +51,39 @@ public class ExpenseService {
 
     private final OaExpenseMapper expenseMapper;
     private final OaExpenseItemMapper expenseItemMapper;
+    private final OaExpenseAttachmentMapper expenseAttachmentMapper;
     private final PaginationHelper paginationHelper;
     private final UserMapper userMapper;
     private final AuthService authService;
     private final WorkflowService workflowService;
     private final AuditService auditService;
     private final SequenceService sequenceService;
+    private final MinioStorageService minioStorageService;
     private final ObjectMapper objectMapper;
 
     public ExpenseService(
             OaExpenseMapper expenseMapper,
             OaExpenseItemMapper expenseItemMapper,
+            OaExpenseAttachmentMapper expenseAttachmentMapper,
             PaginationHelper paginationHelper,
             UserMapper userMapper,
             AuthService authService,
             WorkflowService workflowService,
             AuditService auditService,
             SequenceService sequenceService,
+            MinioStorageService minioStorageService,
             ObjectMapper objectMapper
     ) {
         this.expenseMapper = expenseMapper;
         this.expenseItemMapper = expenseItemMapper;
+        this.expenseAttachmentMapper = expenseAttachmentMapper;
         this.paginationHelper = paginationHelper;
         this.userMapper = userMapper;
         this.authService = authService;
         this.workflowService = workflowService;
         this.auditService = auditService;
         this.sequenceService = sequenceService;
+        this.minioStorageService = minioStorageService;
         this.objectMapper = objectMapper;
     }
 
@@ -328,6 +339,60 @@ public class ExpenseService {
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "导出失败: " + e.getMessage());
         }
+    }
+
+    @Transactional
+    public Map<String, Object> uploadAttachment(long expenseId, MultipartFile file) {
+        loadExpenseHeader(expenseId);
+        AuthUser user = authService.currentUser();
+        long attachmentId = sequenceService.nextId("oa_expense_attachment");
+        String objectName = "expense/" + expenseId + "/" + attachmentId + "/" + file.getOriginalFilename();
+        try {
+            minioStorageService.upload(objectName, file.getInputStream(),
+                    file.getContentType(), file.getSize());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "文件上传失败: " + e.getMessage());
+        }
+        OaExpenseAttachment attachment = new OaExpenseAttachment();
+        attachment.setId(attachmentId);
+        attachment.setExpenseId(expenseId);
+        attachment.setFileName(file.getOriginalFilename());
+        attachment.setFilePath(objectName);
+        attachment.setFileSize(file.getSize());
+        attachment.setMimeType(file.getContentType());
+        attachment.setUploadedBy(user.id());
+        attachment.setCreatedAt(LocalDateTime.now());
+        attachment.setDeleted(0);
+        expenseAttachmentMapper.insert(attachment);
+        return toMap(attachment);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listAttachments(long expenseId) {
+        loadExpenseHeader(expenseId);
+        LambdaQueryWrapper<OaExpenseAttachment> qw = new LambdaQueryWrapper<>();
+        qw.eq(OaExpenseAttachment::getExpenseId, expenseId)
+                .eq(OaExpenseAttachment::getDeleted, 0)
+                .orderByDesc(OaExpenseAttachment::getId);
+        List<OaExpenseAttachment> attachments = expenseAttachmentMapper.selectList(qw);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (OaExpenseAttachment a : attachments) {
+            result.add(toMap(a));
+        }
+        return result;
+    }
+
+    @Transactional
+    public void deleteAttachment(long expenseId, long attachmentId) {
+        loadExpenseHeader(expenseId);
+        OaExpenseAttachment attachment = expenseAttachmentMapper.selectById(attachmentId);
+        if (attachment == null || !attachment.getExpenseId().equals(expenseId) || attachment.getDeleted() != 0) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "附件不存在");
+        }
+        LambdaUpdateWrapper<OaExpenseAttachment> uw = new LambdaUpdateWrapper<>();
+        uw.eq(OaExpenseAttachment::getId, attachmentId)
+                .set(OaExpenseAttachment::getDeleted, 1);
+        expenseAttachmentMapper.update(null, uw);
     }
 
     private Map<String, Object> loadExpenseHeader(long id) {

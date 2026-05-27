@@ -4,6 +4,8 @@ import com.company.oa.common.api.PageResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -68,6 +71,30 @@ public class ExpenseController {
     @PostMapping("/{id}/cancel")
     public Map<String, Object> cancel(@PathVariable long id) {
         return expenseService.cancelExpense(id);
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:create')")
+    @PostMapping("/{id}/attachments")
+    public Map<String, Object> uploadAttachment(
+            @PathVariable long id,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return expenseService.uploadAttachment(id, file);
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:view')")
+    @GetMapping("/{id}/attachments")
+    public List<Map<String, Object>> listAttachments(@PathVariable long id) {
+        return expenseService.listAttachments(id);
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:create')")
+    @DeleteMapping("/{id}/attachments/{attachmentId}")
+    public void deleteAttachment(
+            @PathVariable long id,
+            @PathVariable long attachmentId
+    ) {
+        expenseService.deleteAttachment(id, attachmentId);
     }
 
     @PreAuthorize("hasAnyAuthority('*', 'org:create')")

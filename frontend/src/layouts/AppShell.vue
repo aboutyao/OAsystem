@@ -3,12 +3,75 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { getDashboardSummary, type DashboardSummary } from '../api/dashboard'
+import { globalSearch, type SearchResult } from '../api/search'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const isCollapsed = ref(false)
 const dashSummary = ref<DashboardSummary | null>(null)
+
+// Global search state
+const searchQuery = ref('')
+const searchResults = ref<SearchResult | null>(null)
+const searchPopoverVisible = ref(false)
+const searchLoading = ref(false)
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+function onSearchInput(val: string) {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  if (!val || val.trim().length === 0) {
+    searchResults.value = null
+    searchLoading.value = false
+    return
+  }
+  searchLoading.value = true
+  searchDebounceTimer = setTimeout(async () => {
+    try {
+      searchResults.value = await globalSearch(val.trim(), 5)
+    } catch {
+      searchResults.value = null
+    } finally {
+      searchLoading.value = false
+    }
+  }, 300)
+}
+
+function navigateSearchResult(type: string, item: Record<string, unknown>) {
+  searchPopoverVisible.value = false
+  searchQuery.value = ''
+  searchResults.value = null
+  switch (type) {
+    case 'user':
+      router.push('/org/users')
+      break
+    case 'leave':
+      router.push(`/oa/leaves/${item.id}`)
+      break
+    case 'file':
+      router.push(`/files/${item.id}`)
+      break
+  }
+}
+
+function onSearchClear() {
+  searchResults.value = null
+  searchLoading.value = false
+}
+
+function hasAnyResults(): boolean {
+  if (!searchResults.value) return false
+  return (
+    (searchResults.value.users?.length ?? 0) > 0 ||
+    (searchResults.value.leaves?.length ?? 0) > 0 ||
+    (searchResults.value.files?.length ?? 0) > 0
+  )
+}
+
+// Close search popover on route change
+watch(() => route.path, () => {
+  searchPopoverVisible.value = false
+})
 
 const title = computed(() => route.meta.title ?? '企业 OA')
 const asideWidth = computed(() => (isCollapsed.value ? '64px' : '240px'))
@@ -164,6 +227,93 @@ function goNotifications() {
           </div>
         </div>
         <div class="app-shell__user">
+          <el-popover
+            v-model:visible="searchPopoverVisible"
+            placement="bottom-end"
+            :width="420"
+            trigger="click"
+            :show-arrow="false"
+            :offset="8"
+          >
+            <template #reference>
+              <div class="app-shell__search-input" :class="{ 'is-active': searchPopoverVisible }">
+                <el-input
+                  v-model="searchQuery"
+                  placeholder="搜索人员、请假、文件..."
+                  clearable
+                  :prefix-icon="Search"
+                  @input="onSearchInput"
+                  @clear="onSearchClear"
+                  @focus="searchPopoverVisible = true"
+                />
+              </div>
+            </template>
+            <div class="app-shell__search-popover">
+              <div v-if="searchLoading" class="app-shell__search-loading">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                <span>搜索中...</span>
+              </div>
+              <div v-else-if="!hasAnyResults() && searchQuery.trim().length > 0" class="app-shell__search-empty">
+                未找到相关结果
+              </div>
+              <div v-else-if="searchResults">
+                <!-- Users -->
+                <div v-if="searchResults.users && searchResults.users.length > 0" class="app-shell__search-group">
+                  <div class="app-shell__search-group-title">人员</div>
+                  <div
+                    v-for="item in searchResults.users"
+                    :key="'u-' + item.id"
+                    class="app-shell__search-item"
+                    @click="navigateSearchResult('user', item)"
+                  >
+                    <el-avatar :size="32" style="background: var(--oa-primary); flex-shrink: 0">
+                      {{ String(item.name ?? '').charAt(0) }}
+                    </el-avatar>
+                    <div class="app-shell__search-item-info">
+                      <div class="app-shell__search-item-name">{{ item.name }}</div>
+                      <div class="app-shell__search-item-meta">{{ item.username }} {{ item.employeeNo ? '· ' + item.employeeNo : '' }}</div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Leaves -->
+                <div v-if="searchResults.leaves && searchResults.leaves.length > 0" class="app-shell__search-group">
+                  <div class="app-shell__search-group-title">请假</div>
+                  <div
+                    v-for="item in searchResults.leaves"
+                    :key="'l-' + item.id"
+                    class="app-shell__search-item"
+                    @click="navigateSearchResult('leave', item)"
+                  >
+                    <el-icon :size="20" style="color: var(--oa-primary); flex-shrink: 0; margin: 6px 0 0 6px"><Calendar /></el-icon>
+                    <div class="app-shell__search-item-info">
+                      <div class="app-shell__search-item-name">{{ item.createdName }} - {{ item.leaveType }}</div>
+                      <div class="app-shell__search-item-meta">{{ item.reason ? String(item.reason).substring(0, 40) : '' }}</div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Files -->
+                <div v-if="searchResults.files && searchResults.files.length > 0" class="app-shell__search-group">
+                  <div class="app-shell__search-group-title">文件</div>
+                  <div
+                    v-for="item in searchResults.files"
+                    :key="'f-' + item.id"
+                    class="app-shell__search-item"
+                    @click="navigateSearchResult('file', item)"
+                  >
+                    <el-icon :size="20" style="color: var(--oa-success); flex-shrink: 0; margin: 6px 0 0 6px"><Document /></el-icon>
+                    <div class="app-shell__search-item-info">
+                      <div class="app-shell__search-item-name">{{ item.fileName }}</div>
+                      <div class="app-shell__search-item-meta">{{ item.fileExt }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="app-shell__search-empty">
+                输入关键词搜索人员、请假记录、文件
+              </div>
+            </div>
+          </el-popover>
+
           <el-badge :value="notificationCount" :hidden="notificationCount === 0" :max="99" class="app-shell__notification" @click="goNotifications">
             <el-icon :size="20"><Bell /></el-icon>
           </el-badge>
@@ -204,6 +354,88 @@ function goNotifications() {
 </template>
 
 <style scoped>
+.app-shell__search-input {
+  width: 260px;
+  transition: width 0.2s ease;
+}
+.app-shell__search-input.is-active {
+  width: 320px;
+}
+.app-shell__search-input :deep(.el-input__wrapper) {
+  border-radius: var(--oa-radius-sm);
+  box-shadow: 0 0 0 1px var(--oa-border-lighter) inset;
+}
+.app-shell__search-input :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px var(--oa-border-base) inset;
+}
+.app-shell__search-input :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--oa-primary) inset;
+}
+.app-shell__search-popover {
+  max-height: 420px;
+  overflow-y: auto;
+}
+.app-shell__search-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--oa-text-secondary);
+  font-size: 13px;
+  justify-content: center;
+}
+.app-shell__search-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--oa-text-secondary);
+  font-size: 13px;
+}
+.app-shell__search-group {
+  padding: 4px 0;
+}
+.app-shell__search-group + .app-shell__search-group {
+  border-top: 1px solid var(--oa-border-lighter);
+}
+.app-shell__search-group-title {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--oa-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.app-shell__search-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background var(--oa-transition);
+}
+.app-shell__search-item:hover {
+  background: var(--oa-bg-page);
+}
+.app-shell__search-item-info {
+  flex: 1;
+  min-width: 0;
+}
+.app-shell__search-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--oa-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-shell__search-item-meta {
+  font-size: 12px;
+  color: var(--oa-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
 .app-shell__header-left {
   display: flex;
   flex-direction: column;

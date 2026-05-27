@@ -364,6 +364,10 @@ public class WorkflowService {
         entity.setUpdatedAt(now);
         instanceMapper.insert(entity);
 
+        // Set SLA deadline: 48 hours from now
+        LocalDateTime slaDeadline = now.plusHours(48);
+        instanceMapper.updateSlaDeadline(entity.getId(), slaDeadline);
+
         insertTaskRecord(entity.getId(), null, "SUBMIT", starter.id(), starter.realName(), "发起", null, null, now);
         syncPendingTasksFromFlowable(entity.getId(), pi.getId());
 
@@ -983,7 +987,27 @@ public class WorkflowService {
         if (row == null || row.isEmpty()) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "流程实例不存在");
         }
-        return new LinkedHashMap<>(row);
+        Map<String, Object> result = new LinkedHashMap<>(row);
+        // Check SLA breach: if status is still APPROVING and deadline has passed
+        Object slaDeadlineObj = result.get("slaDeadline");
+        Object statusObj = result.get("status");
+        Object slaBreachedObj = result.get("slaBreached");
+        if (slaDeadlineObj != null && APPROVING.equals(String.valueOf(statusObj))) {
+            LocalDateTime slaDeadline = null;
+            if (slaDeadlineObj instanceof LocalDateTime ldt) {
+                slaDeadline = ldt;
+            } else {
+                try {
+                    slaDeadline = LocalDateTime.parse(String.valueOf(slaDeadlineObj));
+                } catch (Exception ignore) {
+                }
+            }
+            if (slaDeadline != null && LocalDateTime.now().isAfter(slaDeadline)) {
+                instanceMapper.markSlaBreach(wfInstanceId);
+                result.put("slaBreached", 1);
+            }
+        }
+        return result;
     }
 
     private Map<String, Object> instanceSummary(long wfInstanceId) {
@@ -993,6 +1017,8 @@ public class WorkflowService {
         out.put("processInstanceId", inst.get("processInstanceId"));
         out.put("status", inst.get("status"));
         out.put("currentNodeName", inst.get("currentNodeName"));
+        out.put("slaDeadline", inst.get("slaDeadline"));
+        out.put("slaBreached", inst.get("slaBreached"));
         return out;
     }
 

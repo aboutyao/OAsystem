@@ -39,4 +39,6 @@ public class WfTask extends BaseEntity {
     private Long addSignOriginTaskId;
 
     private String addSignMode;
+
+    private LocalDateTime slaDeadline;
 }

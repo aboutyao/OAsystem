@@ -10,15 +10,20 @@ import {
   submitPurchase,
   withdrawPurchase,
 } from '../../../api/oa-purchases'
+import { instanceDetail, instanceTimeline } from '../../../api/workflow'
 import type { JsonObject } from '../../../api/types'
 import { useOaActions } from '../../../composables/useOaActions'
 import { formatDisplayDateTime, statusLabel } from '../oa-shared'
+import OaApprovalProgress from '../../../components/OaApprovalProgress.vue'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(true)
 const row = ref<JsonObject | null>(null)
 const items = ref<JsonObject[]>([])
+const timeline = ref<JsonObject[]>([])
+const timelineLoading = ref(false)
+const wfInstance = ref<JsonObject | null>(null)
 
 const id = computed(() => Number(route.params.id))
 const status = computed(() => (row.value ? String(row.value.status ?? '') : ''))
@@ -28,6 +33,7 @@ const acceptance = computed(() => (row.value ? String(row.value.acceptanceStatus
 onMounted(async () => {
   try {
     await reload()
+    await loadTimeline()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
     router.push('/oa/purchases')
@@ -44,6 +50,25 @@ async function reload() {
     items.value = Array.isArray(it) ? it : []
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
+  }
+}
+
+async function loadTimeline() {
+  const wfId = row.value?.wfInstanceId
+  if (!wfId) return
+  timelineLoading.value = true
+  try {
+    const [timelineData, instanceData] = await Promise.all([
+      instanceTimeline(Number(wfId)),
+      instanceDetail(Number(wfId)),
+    ])
+    timeline.value = timelineData
+    wfInstance.value = instanceData
+  } catch {
+    timeline.value = []
+    wfInstance.value = null
+  } finally {
+    timelineLoading.value = false
   }
 }
 
@@ -125,6 +150,29 @@ async function onAccept() {
         <el-table-column prop="unitPrice" label="单价" width="100" />
         <el-table-column prop="amount" label="金额" width="100" />
       </el-table>
+    </el-card>
+
+    <el-divider v-if="row" />
+
+    <el-card v-if="row" shadow="never" v-loading="timelineLoading">
+      <template #header>
+        <div class="card-header">
+          <span>审批记录</span>
+          <el-button text type="primary" size="small" @click="loadTimeline" :loading="timelineLoading">刷新</el-button>
+        </div>
+      </template>
+      <OaApprovalProgress
+        :timeline="timeline.map((item: JsonObject) => ({
+          action: String(item.action ?? ''),
+          operatorName: String(item.operatorName ?? '系统'),
+          nodeName: item.nodeName ? String(item.nodeName) : undefined,
+          operatedAt: formatDisplayDateTime(item.operatedAt),
+          comment: item.comment ? String(item.comment) : undefined,
+        }))"
+        :current-node-name="wfInstance?.currentNodeName ? String(wfInstance.currentNodeName) : undefined"
+        :sla-deadline="wfInstance?.slaDeadline ? String(wfInstance.slaDeadline) : undefined"
+        :sla-breached="wfInstance?.slaBreached as boolean | number | undefined"
+      />
     </el-card>
   </div>
 </template>

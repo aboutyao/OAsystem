@@ -18,7 +18,8 @@ public interface WfProcessInstanceMapper extends BaseMapper<WfProcessInstance> {
             select id as wfInstanceId, process_instance_id as processInstanceId, template_id as templateId,
                    process_version_id as processVersionId, business_type as businessType, business_id as businessId,
                    title, starter_id as starterId, starter_name_snapshot as starterName, current_node_name as currentNodeName,
-                   status, started_at as startedAt, ended_at as endedAt
+                   status, started_at as startedAt, ended_at as endedAt,
+                   sla_deadline as slaDeadline, sla_breached as slaBreached
             from wf_process_instance where id = #{id}
             """)
     Map<String, Object> loadInstance(@Param("id") long id);
@@ -72,6 +73,12 @@ public interface WfProcessInstanceMapper extends BaseMapper<WfProcessInstance> {
 
     @Select("select count(*) from wf_process_instance where starter_id = #{starterId} and status = 'APPROVING'")
     Long countStartedByStarter(@Param("starterId") long starterId);
+
+    @Update("update wf_process_instance set sla_deadline = #{slaDeadline} where id = #{id}")
+    int updateSlaDeadline(@Param("id") long id, @Param("slaDeadline") LocalDateTime slaDeadline);
+
+    @Update("update wf_process_instance set sla_breached = 1 where id = #{id} and sla_breached = 0")
+    int markSlaBreach(@Param("id") long id);
 
     @Select("""
             select count(*) from wf_process_instance inst
