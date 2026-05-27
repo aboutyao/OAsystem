@@ -132,27 +132,19 @@ npm run dev
 ### Docker 一键部署
 
 ```bash
-# 1. 配置环境变量（可选，已有默认值用于体验）
+# 可选：复制并修改环境变量（不改也能跑）
 cp .env.example .env
-# 编辑 .env 修改密码和密钥
 
-# 2. 启动所有服务（首次构建约需 5-10 分钟）
+# 启动（首次构建约 5-10 分钟，Flyway 自动建表 + 灌初始数据）
 docker compose up -d --build
-
-# 3. 访问
-# 前端: http://localhost:8090
-# API:  http://localhost:8080
-# 默认账号: admin / Admin@123
 ```
 
-### 远程服务器部署
+启动后访问：
+- 前端: http://localhost:8090
+- API:  http://localhost:8080
+- 默认账号: `admin` / `admin123`（请登录后立即修改密码）
 
-```bash
-# 手动部署
-scp -r ./* root@your-server:/opt/oa-system/
-ssh root@your-server
-cd /opt/oa-system && docker compose up -d --build
-```
+远程服务器同样执行 `docker compose up -d --build` 即可，无需额外脚本。
 
 ## API 接口
 
