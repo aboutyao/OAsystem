@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { listLeaves } from '../../../api/oa-leaves'
 import type { JsonObject } from '../../../api/types'
 import { usePaginatedList } from '../../../composables/usePaginatedList'
-import { formatDisplayDateTime, OA_STATUS_LABEL, statusLabel } from '../oa-shared'
+import { formatRelativeTime, OA_STATUS_LABEL, statusLabel } from '../oa-shared'
 
 const router = useRouter()
 const { loading, rows, total, page, size, load, handleSizeChange } = usePaginatedList<JsonObject>(listLeaves)
@@ -129,10 +129,10 @@ const statusCounts = computed(() => {
         <el-table-column prop="id" label="编号" width="88" />
         <el-table-column prop="leaveType" label="类型" width="100" />
         <el-table-column label="开始时间" min-width="160">
-          <template #default="{ row }">{{ formatDisplayDateTime(row.startAt) }}</template>
+          <template #default="{ row }">{{ formatRelativeTime(row.startAt) }}</template>
         </el-table-column>
         <el-table-column label="结束时间" min-width="160">
-          <template #default="{ row }">{{ formatDisplayDateTime(row.endAt) }}</template>
+          <template #default="{ row }">{{ formatRelativeTime(row.endAt) }}</template>
         </el-table-column>
         <el-table-column label="时长" width="100">
           <template #default="{ row }">{{ row.durationDays ?? '—' }} 天</template>

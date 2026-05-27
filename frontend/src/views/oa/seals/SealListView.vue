@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { listSeals } from '../../../api/oa-seals'
 import type { JsonObject } from '../../../api/types'
-import { formatDisplayDateTime, statusLabel } from '../oa-shared'
+import { formatRelativeTime, statusLabel } from '../oa-shared'
 
 const router = useRouter()
 const loading = ref(false)
@@ -54,12 +54,17 @@ function goDetail(row: JsonObject) {
 
     <el-card shadow="never">
       <el-table v-loading="loading" :data="rows" stripe>
+        <template #empty>
+          <el-empty description="暂无数据">
+            <el-button type="primary" @click="goCreate">新建申请</el-button>
+          </el-empty>
+        </template>
         <el-table-column prop="id" label="编号" width="88" />
         <el-table-column prop="sealType" label="印章类型" width="120" />
         <el-table-column prop="sealName" label="印章名称" width="120" />
         <el-table-column prop="fileTitle" label="文件标题" min-width="160" />
         <el-table-column label="使用时间" min-width="160">
-          <template #default="{ row }">{{ formatDisplayDateTime(row.useAt) }}</template>
+          <template #default="{ row }">{{ formatRelativeTime(row.useAt) }}</template>
         </el-table-column>
         <el-table-column label="外带" width="72">
           <template #default="{ row }">{{ Number(row.outFlag) === 1 ? '是' : '否' }}</template>

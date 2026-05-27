@@ -128,7 +128,7 @@ async function onSave() {
           <el-input v-model="form.useReason" type="textarea" :rows="2" />
         </el-form-item>
         <el-form-item label="使用时间" required>
-          <el-date-picker v-model="form.useAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" />
+          <el-date-picker v-model="form.useAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" :disabled-date="(time: Date) => time.getTime() < Date.now() - 86400000" />
         </el-form-item>
         <el-form-item label="是否外带">
           <el-radio-group v-model="form.outFlag">

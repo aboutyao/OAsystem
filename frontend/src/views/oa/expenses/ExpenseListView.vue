@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { listExpenses } from '../../../api/oa-expenses'
 import type { JsonObject } from '../../../api/types'
 import { usePaginatedList } from '../../../composables/usePaginatedList'
-import { formatDisplayDateTime, statusLabel } from '../oa-shared'
+import { formatRelativeTime, statusLabel } from '../oa-shared'
 
 const router = useRouter()
 const { loading, rows, total, page, size, load, handleSizeChange } = usePaginatedList<JsonObject>(listExpenses)
@@ -90,7 +90,7 @@ const statusCounts = computed(() => {
           </template>
         </el-table-column>
         <el-table-column label="更新时间" min-width="160">
-          <template #default="{ row }">{{ formatDisplayDateTime(row.updatedAt) }}</template>
+          <template #default="{ row }">{{ formatRelativeTime(row.updatedAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="100">
           <template #default="{ row }">

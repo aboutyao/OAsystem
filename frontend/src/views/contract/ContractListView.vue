@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { listContracts } from '../../api/contracts'
 import type { JsonObject } from '../../api/types'
-import { formatDisplayDate, statusLabel } from '../oa/oa-shared'
+import { formatRelativeTime, statusLabel } from '../oa/oa-shared'
 
 const router = useRouter()
 const loading = ref(false)
@@ -114,7 +114,7 @@ const statusCounts = computed(() => {
           </template>
         </el-table-column>
         <el-table-column label="结束日" width="120">
-          <template #default="{ row }">{{ formatDisplayDate(row.endDate) }}</template>
+          <template #default="{ row }">{{ formatRelativeTime(row.endDate) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="100">
           <template #default="{ row }">

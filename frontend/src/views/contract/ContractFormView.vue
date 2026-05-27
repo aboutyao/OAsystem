@@ -108,10 +108,10 @@ async function onSave() {
           <el-input-number v-model="form.amount" :min="0" :step="0.01" :controls="true" style="width: 100%" />
         </el-form-item>
         <el-form-item label="开始日">
-          <el-date-picker v-model="form.startDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+          <el-date-picker v-model="form.startDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="(time: Date) => time.getTime() < Date.now() - 86400000" />
         </el-form-item>
         <el-form-item label="结束日">
-          <el-date-picker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+          <el-date-picker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="(time: Date) => form.startDate && time.getTime() < new Date(form.startDate).getTime() - 86400000" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="saving" @click="onSave">保存</el-button>

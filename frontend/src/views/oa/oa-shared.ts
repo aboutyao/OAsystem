@@ -68,3 +68,25 @@ export function computeLeaveSpan(startIso: string, endIso: string): { durationHo
   const durationDays = Math.round((ms / 86400000) * 100) / 100
   return { durationHours, durationDays }
 }
+
+export function formatRelativeTime(dateStr: unknown): string {
+  if (!dateStr) return ''
+  const d = new Date(String(dateStr))
+  const now = Date.now()
+  const diff = now - d.getTime()
+  const absDiff = Math.abs(diff)
+  const minutes = Math.floor(absDiff / 60000)
+  const hours = Math.floor(absDiff / 3600000)
+  const days = Math.floor(absDiff / 86400000)
+  if (diff > 0) {
+    if (minutes < 1) return '刚刚'
+    if (minutes < 60) return `${minutes}分钟前`
+    if (hours < 24) return `${hours}小时前`
+    if (days < 7) return `${days}天前`
+  } else {
+    if (minutes < 60) return `${minutes}分钟后`
+    if (hours < 24) return `${hours}小时后`
+    if (days < 7) return `${days}天后`
+  }
+  return formatDisplayDateTime(dateStr)
+}

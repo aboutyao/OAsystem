@@ -39,6 +39,11 @@ const greeting = computed(() => {
   return '晚上好'
 })
 
+const todayDate = computed(() => {
+  const now = new Date()
+  return `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 星期${'日一二三四五六'[now.getDay()]}`
+})
+
 const userName = computed(() => authStore.user?.realName ?? '用户')
 const deptName = computed(() => authStore.user?.mainDeptName ?? '')
 
@@ -107,7 +112,7 @@ const statCards = computed(() => [
       </el-avatar>
       <div class="dashboard-welcome__info">
         <h2>{{ greeting }}，{{ userName }}</h2>
-        <p>{{ deptName ? deptName + ' · ' : '' }}欢迎回到企业级 OA 系统</p>
+        <p>{{ todayDate }}　{{ deptName ? deptName + ' · ' : '' }}欢迎回到企业级 OA 系统</p>
       </div>
       <div class="dashboard-welcome__actions">
         <el-tag type="success" effect="light" round>系统运行正常</el-tag>

@@ -46,6 +46,11 @@ function goDetail(row: JsonObject) {
 
     <el-card shadow="never">
       <el-table v-loading="loading" :data="rows" stripe>
+        <template #empty>
+          <el-empty description="暂无数据">
+            <el-button type="primary" @click="goCreate">新建采购</el-button>
+          </el-empty>
+        </template>
         <el-table-column prop="id" label="编号" width="88" />
         <el-table-column prop="purchaseNo" label="单号" min-width="140" />
         <el-table-column prop="purchaseType" label="类型" width="120" />

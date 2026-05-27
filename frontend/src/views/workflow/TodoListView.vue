@@ -108,6 +108,11 @@ function goDone() {
 
     <el-card shadow="never">
       <el-table v-loading="loading" :data="rows" stripe>
+        <template #empty>
+          <el-empty description="暂无待办">
+            <el-button type="primary" @click="goDone">查看已办</el-button>
+          </el-empty>
+        </template>
         <el-table-column prop="taskId" label="任务号" width="100" />
         <el-table-column prop="title" label="标题" min-width="200" />
         <el-table-column prop="nodeName" label="当前节点" width="140" />

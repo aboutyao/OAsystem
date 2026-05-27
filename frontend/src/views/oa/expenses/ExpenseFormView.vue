@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { createExpense, getExpense, updateExpense } from '../../../api/oa-expenses'
 import type { JsonObject } from '../../../api/types'
 import { toInputDate } from '../oa-shared'
@@ -10,6 +10,31 @@ const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const saving = ref(false)
+const isDirty = ref(false)
+
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+  if (isDirty.value) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
+}
+
+onBeforeRouteLeave((to, from, next) => {
+  if (!isDirty.value) return next()
+  ElMessageBox.confirm('有未保存的修改，确定离开吗？', '提示', {
+    confirmButtonText: '确定离开',
+    cancelButtonText: '留下',
+    type: 'warning',
+  }).then(() => next()).catch(() => next(false))
+})
+
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
 
 const isEdit = computed(() => route.name === 'expense-edit')
 const id = computed(() => (isEdit.value ? Number(route.params.id) : 0))
@@ -39,6 +64,14 @@ watch(
     form.totalAmount = Math.round(v * 100) / 100
   },
   { immediate: true },
+)
+
+watch(
+  items,
+  () => {
+    isDirty.value = true
+  },
+  { deep: true },
 )
 
 function addItem() {
@@ -145,7 +178,7 @@ async function onSave() {
     <el-card shadow="never">
       <el-form label-width="100px" style="max-width: 800px">
         <el-form-item label="报销类型" required>
-          <el-select v-model="form.expenseType" style="width: 100%">
+          <el-select v-model="form.expenseType" style="width: 100%" @change="isDirty = true">
             <el-option label="差旅费" value="差旅费" />
             <el-option label="招待费" value="招待费" />
             <el-option label="办公费" value="办公费" />
@@ -156,10 +189,10 @@ async function onSave() {
           <el-input v-model.number="form.totalAmount" disabled />
         </el-form-item>
         <el-form-item label="收款账户">
-          <el-input v-model="form.payeeAccount" />
+          <el-input v-model="form.payeeAccount" @input="isDirty = true" />
         </el-form-item>
         <el-form-item label="事由">
-          <el-input v-model="form.reason" type="textarea" :rows="2" />
+          <el-input v-model="form.reason" type="textarea" :rows="2" @input="isDirty = true" />
         </el-form-item>
 
         <el-form-item label="费用明细">
@@ -171,7 +204,7 @@ async function onSave() {
             </el-table-column>
             <el-table-column label="日期" width="160">
               <template #default="{ row }">
-                <el-date-picker v-model="row.feeDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+                <el-date-picker v-model="row.feeDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="(time: Date) => time.getTime() > Date.now() + 86400000" />
               </template>
             </el-table-column>
             <el-table-column label="金额" width="120">

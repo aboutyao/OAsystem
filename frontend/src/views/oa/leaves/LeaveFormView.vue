@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { calculateLeaveDuration, createLeave, getLeave, updateLeave } from '../../../api/oa-leaves'
 import { computeLeaveSpan } from '../oa-shared'
 
@@ -9,6 +9,39 @@ const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const saving = ref(false)
+const formRef = ref()
+const isDirty = ref(false)
+
+const formRules = {
+  leaveType: [{ required: true, message: '请选择请假类型', trigger: 'change' }],
+  startAt: [{ required: true, message: '请选择开始时间', trigger: 'change' }],
+  endAt: [{ required: true, message: '请选择结束时间', trigger: 'change' }],
+  reason: [{ required: true, message: '请填写请假原因', trigger: 'blur' }],
+}
+
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+  if (isDirty.value) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
+}
+
+onBeforeRouteLeave((to, from, next) => {
+  if (!isDirty.value) return next()
+  ElMessageBox.confirm('有未保存的修改，确定离开吗？', '提示', {
+    confirmButtonText: '确定离开',
+    cancelButtonText: '留下',
+    type: 'warning',
+  }).then(() => next()).catch(() => next(false))
+})
+
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
 
 const isEdit = computed(() => route.name === 'leave-edit')
 const id = computed(() => (isEdit.value ? Number(route.params.id) : 0))
@@ -35,6 +68,18 @@ async function syncDuration() {
     form.durationDays = c.durationDays
   }
 }
+
+const durationDisplay = computed(() => {
+  if (!form.startAt || !form.endAt) return form.durationDays || ''
+  const a = Date.parse(form.startAt)
+  const b = Date.parse(form.endAt)
+  if (Number.isNaN(a) || Number.isNaN(b) || b <= a) return form.durationDays || ''
+  const calendarMs = b - a
+  const calendarDays = Math.round((calendarMs / 86400000) * 100) / 100
+  const workingDays = form.durationDays
+  if (calendarDays === workingDays) return `${workingDays} 天`
+  return `${workingDays} 天（${calendarDays} 个自然日）`
+})
 
 watch(
   () => [form.startAt, form.endAt],
@@ -89,8 +134,9 @@ function normalizeDt(v: unknown): string {
 }
 
 async function onSave() {
-  if (!form.startAt || !form.endAt) {
-    ElMessage.warning('请填写开始与结束时间')
+  try {
+    await formRef.value.validate()
+  } catch {
     return
   }
   await syncDuration()
@@ -133,32 +179,46 @@ async function onSave() {
     </div>
 
     <el-card shadow="never">
-      <el-form label-width="100px" style="max-width: 640px">
-        <el-form-item label="请假类型" required>
-          <el-select v-model="form.leaveType" style="width: 100%">
+      <el-form ref="formRef" :rules="formRules" label-width="100px" style="max-width: 640px">
+        <el-form-item label="请假类型" prop="leaveType">
+          <el-select v-model="form.leaveType" style="width: 100%" @change="isDirty = true">
             <el-option label="年假" value="年假" />
             <el-option label="病假" value="病假" />
             <el-option label="事假" value="事假" />
             <el-option label="调休" value="调休" />
           </el-select>
         </el-form-item>
-        <el-form-item label="开始时间" required>
-          <el-date-picker v-model="form.startAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" />
+        <el-form-item label="开始时间" prop="startAt">
+          <el-date-picker
+            v-model="form.startAt"
+            type="datetime"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            style="width: 100%"
+            :disabled-date="(time: Date) => time.getTime() < Date.now() - 86400000"
+            @change="isDirty = true"
+          />
         </el-form-item>
-        <el-form-item label="结束时间" required>
-          <el-date-picker v-model="form.endAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" />
+        <el-form-item label="结束时间" prop="endAt">
+          <el-date-picker
+            v-model="form.endAt"
+            type="datetime"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            style="width: 100%"
+            :disabled-date="(time: Date) => form.startAt && time.getTime() < new Date(form.startAt).getTime() - 86400000"
+            @change="isDirty = true"
+          />
         </el-form-item>
         <el-form-item label="时长(小时)">
           <el-input v-model.number="form.durationHours" disabled />
         </el-form-item>
         <el-form-item label="时长(天)">
-          <el-input v-model.number="form.durationDays" disabled />
+          <el-input :model-value="durationDisplay" disabled />
         </el-form-item>
-        <el-form-item label="事由">
-          <el-input v-model="form.reason" type="textarea" :rows="3" />
+        <el-form-item label="事由" prop="reason">
+          <el-input v-model="form.reason" type="textarea" :rows="3" @input="isDirty = true" />
         </el-form-item>
         <el-form-item label="交接说明">
-          <el-input v-model="form.handoverNote" type="textarea" :rows="2" />
+          <el-input v-model="form.handoverNote" type="textarea" :rows="2" @input="isDirty = true" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="saving" @click="onSave">保存</el-button>

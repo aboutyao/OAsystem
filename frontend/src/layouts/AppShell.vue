@@ -155,7 +155,10 @@ function goNotifications() {
             <div class="app-shell__title">{{ title }}</div>
             <el-breadcrumb separator="/" class="app-shell__breadcrumb">
               <el-breadcrumb-item v-for="(bc, i) in breadcrumbs" :key="i">
-                {{ bc.title }}
+                <router-link v-if="i < breadcrumbs.length - 1" :to="bc.path" class="breadcrumb-link">
+                  {{ bc.title }}
+                </router-link>
+                <span v-else>{{ bc.title }}</span>
               </el-breadcrumb-item>
             </el-breadcrumb>
           </div>
@@ -190,7 +193,11 @@ function goNotifications() {
       </el-header>
 
       <el-main class="app-shell__main">
-        <RouterView />
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </el-main>
     </el-container>
   </el-container>
@@ -208,9 +215,29 @@ function goNotifications() {
   font-size: 12px;
 }
 
+.breadcrumb-link {
+  color: var(--oa-text-regular);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.breadcrumb-link:hover {
+  color: var(--oa-primary);
+  text-decoration: underline;
+}
+
 .app-shell__breadcrumb .el-breadcrumb__item:last-child .el-breadcrumb__inner {
   color: var(--oa-text-muted);
   font-weight: 400;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 .app-shell__user-info {
