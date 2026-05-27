@@ -995,7 +995,7 @@ public class WorkflowService {
                 if (clearFlowKeys) leaveMapper.updateStatusClearFlowKeysById(businessId, docStatus, now);
                 else leaveMapper.updateStatusById(businessId, docStatus, now);
             }
-            case "EXPENSE" -> {
+            case "EXPENSE", "EXPENSE_HIGH" -> {
                 if (clearFlowKeys) expenseMapper.updateStatusClearFlowKeysById(businessId, docStatus, now);
                 else expenseMapper.updateStatusById(businessId, docStatus, now);
             }
@@ -1078,6 +1078,10 @@ public class WorkflowService {
 
     private PublishedVersion resolvePublishedVersion(String businessType) {
         Map<String, Object> r = templateMapper.resolvePublishedVersion(businessType);
+        // Fallback: if EXPENSE_HIGH template not found, try the standard EXPENSE template
+        if (r == null && "EXPENSE_HIGH".equals(businessType)) {
+            r = templateMapper.resolvePublishedVersion("EXPENSE");
+        }
         if (r == null && !"GENERIC".equals(businessType)) {
             r = templateMapper.resolveGenericPublishedVersion();
         }
@@ -1118,7 +1122,7 @@ public class WorkflowService {
                     if (vpId != null) flowVars.put("vpId", String.valueOf(vpId));
                 }
             }
-            case "EXPENSE" -> {
+            case "EXPENSE", "EXPENSE_HIGH" -> {
                 if (!flowVars.containsKey("financeAdminId")) {
                     Long faId = userRoleMapper.findFirstUserIdByRoleCode("FINANCE_ADMIN");
                     if (faId != null) flowVars.put("financeAdminId", String.valueOf(faId));

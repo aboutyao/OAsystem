@@ -10,6 +10,9 @@ import com.company.oa.common.service.OaUtils;
 import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +24,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class AuditService {
+    private static final Logger log = LoggerFactory.getLogger(AuditService.class);
     public static final String SUCCESS = "SUCCESS";
     public static final String FAILED = "FAILED";
 
@@ -28,15 +32,18 @@ public class AuditService {
     private final AuditOperationLogMapper operationLogMapper;
     private final PaginationHelper paginationHelper;
     private final SequenceService sequenceService;
+    private final ObjectMapper objectMapper;
 
     public AuditService(AuditLoginLogMapper loginLogMapper,
                         AuditOperationLogMapper operationLogMapper,
                         PaginationHelper paginationHelper,
-                        SequenceService sequenceService) {
+                        SequenceService sequenceService,
+                        ObjectMapper objectMapper) {
         this.loginLogMapper = loginLogMapper;
         this.operationLogMapper = operationLogMapper;
         this.paginationHelper = paginationHelper;
         this.sequenceService = sequenceService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -86,6 +93,42 @@ public class AuditService {
         }
     }
 
+    /**
+     * 业务侧调用：记录带有变更前后值的审计操作。
+     */
+    public void safeRecordOperationWithDiff(
+            Long operatorId,
+            String operationType,
+            String businessType,
+            Long businessId,
+            String result,
+            String errorMessage,
+            String oldValue,
+            String newValue
+    ) {
+        try {
+            recordOperation(null, operatorId, operationType, businessType, businessId,
+                    null, null, null, result, errorMessage, null, oldValue, newValue);
+        } catch (Exception ignore) {
+            // 审计写入失败不应阻塞业务
+        }
+    }
+
+    /**
+     * 记录更新操作的差异：将变更前后的字段值序列化为 JSON 并存储。
+     */
+    public void recordUpdate(Long userId, String targetType, Long targetId,
+                             Map<String, Object> oldValues, Map<String, Object> newValues) {
+        try {
+            String oldJson = objectMapper.writeValueAsString(oldValues);
+            String newJson = objectMapper.writeValueAsString(newValues);
+            safeRecordOperationWithDiff(userId, "UPDATE", targetType, targetId,
+                    SUCCESS, null, oldJson, newJson);
+        } catch (Exception e) {
+            log.warn("Failed to serialize audit diff for {} {}: {}", targetType, targetId, e.getMessage());
+        }
+    }
+
     @Transactional
     public void recordOperation(
             String requestId,
@@ -100,6 +143,26 @@ public class AuditService {
             String errorMessage,
             String ip
     ) {
+        recordOperation(requestId, operatorId, operationType, businessType, businessId,
+                requestMethod, requestUri, requestParams, result, errorMessage, ip, null, null);
+    }
+
+    @Transactional
+    public void recordOperation(
+            String requestId,
+            Long operatorId,
+            String operationType,
+            String businessType,
+            Long businessId,
+            String requestMethod,
+            String requestUri,
+            String requestParams,
+            String result,
+            String errorMessage,
+            String ip,
+            String oldValue,
+            String newValue
+    ) {
         AuditOperationLog entity = new AuditOperationLog();
         entity.setId(sequenceService.nextId("audit_operation_log"));
         entity.setRequestId(OaUtils.truncate(requestId, 64));
@@ -113,6 +176,8 @@ public class AuditService {
         entity.setResult(result == null ? FAILED : result);
         entity.setErrorMessage(OaUtils.truncate(errorMessage, 1000));
         entity.setIpAddress(OaUtils.truncate(ip, 64));
+        entity.setOldValue(oldValue);
+        entity.setNewValue(newValue);
         entity.setOperatedAt(LocalDateTime.now());
         operationLogMapper.insert(entity);
     }
@@ -196,6 +261,8 @@ public class AuditService {
             map.put("result", log.getResult());
             map.put("errorMessage", log.getErrorMessage());
             map.put("ipAddress", log.getIpAddress());
+            map.put("oldValue", log.getOldValue());
+            map.put("newValue", log.getNewValue());
             map.put("operatedAt", log.getOperatedAt() == null ? null : log.getOperatedAt().toString());
         }
         return map;

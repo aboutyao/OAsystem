@@ -34,6 +34,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -165,6 +166,13 @@ public class ExpenseService {
         if (req.totalAmount().compareTo(sum) != 0) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "申请金额与明细合计不一致");
         }
+        // Capture old values for audit diff
+        Map<String, Object> oldValues = new HashMap<>();
+        oldValues.put("expenseType", row.get("expenseType"));
+        oldValues.put("totalAmount", row.get("totalAmount"));
+        oldValues.put("payeeAccount", row.get("payeeAccount"));
+        oldValues.put("reason", row.get("reason"));
+
         LocalDateTime now = LocalDateTime.now();
         LambdaUpdateWrapper<OaExpense> uw = new LambdaUpdateWrapper<>();
         uw.eq(OaExpense::getId, id)
@@ -176,6 +184,15 @@ public class ExpenseService {
                 .setSql("version = version + 1");
         expenseMapper.update(null, uw);
         replaceItems(id, req.items());
+
+        // Capture new values and record audit diff
+        Map<String, Object> newValues = new HashMap<>();
+        newValues.put("expenseType", req.expenseType());
+        newValues.put("totalAmount", req.totalAmount());
+        newValues.put("payeeAccount", req.payeeAccount());
+        newValues.put("reason", req.reason());
+        auditService.recordUpdate(authService.currentUser().id(), "EXPENSE", id, oldValues, newValues);
+
         return detail(id);
     }
 
@@ -186,10 +203,16 @@ public class ExpenseService {
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可提交");
         }
+        String oldStatus = String.valueOf(row.get("status"));
         String expenseNo = String.valueOf(row.get("expenseNo"));
         String title = "报销申请-" + expenseNo;
+
+        // Determine workflow template based on amount threshold
+        double amount = toBigDecimal(row.get("totalAmount")).doubleValue();
+        String businessType = amount > 10000 ? "EXPENSE_HIGH" : "EXPENSE";
+
         Map<String, Object> wf = workflowService.startInstance(new WorkflowDtos.StartInstanceRequest(
-                "EXPENSE",
+                businessType,
                 id,
                 title,
                 Map.of("totalAmount", row.get("totalAmount"))
@@ -205,8 +228,10 @@ public class ExpenseService {
         expenseMapper.update(null, uw);
         Map<String, Object> out = detail(id);
         out.put("currentNodeName", wf.get("currentNodeName"));
-        auditService.safeRecordOperation(authService.currentUser().id(),
-                "EXPENSE_SUBMIT", "EXPENSE", id, AuditService.SUCCESS, null);
+        // Record audit with status diff
+        Map<String, Object> oldValues = Map.of("status", oldStatus);
+        Map<String, Object> newValues = Map.of("status", APPROVING);
+        auditService.recordUpdate(authService.currentUser().id(), "EXPENSE", id, oldValues, newValues);
         return out;
     }
 
@@ -217,6 +242,7 @@ public class ExpenseService {
         if (!APPROVING.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅审批中可撤回");
         }
+        String oldStatus = String.valueOf(row.get("status"));
         Object wfInst = row.get("wfInstanceId");
         if (wfInst == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "未关联流程实例");
@@ -231,6 +257,10 @@ public class ExpenseService {
                 .set(OaExpense::getUpdatedAt, now)
                 .setSql("version = version + 1");
         expenseMapper.update(null, uw);
+        // Record audit with status diff
+        Map<String, Object> oldValues = Map.of("status", oldStatus);
+        Map<String, Object> newValues = Map.of("status", "WITHDRAWN");
+        auditService.recordUpdate(authService.currentUser().id(), "EXPENSE", id, oldValues, newValues);
         return detail(id);
     }
 
@@ -242,6 +272,7 @@ public class ExpenseService {
         if (!DRAFT.equals(st) && !APPROVING.equals(st)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可作废");
         }
+        String oldStatus = st;
         if (APPROVING.equals(st)) {
             Object wfInst = row.get("wfInstanceId");
             if (wfInst != null) {
@@ -256,6 +287,10 @@ public class ExpenseService {
                     .setSql("version = version + 1");
             expenseMapper.update(null, uw);
         }
+        // Record audit with status diff
+        Map<String, Object> oldValues = Map.of("status", oldStatus);
+        Map<String, Object> newValues = Map.of("status", CANCELLED);
+        auditService.recordUpdate(authService.currentUser().id(), "EXPENSE", id, oldValues, newValues);
         return detail(id);
     }
 
@@ -269,6 +304,7 @@ public class ExpenseService {
         if (!UNPAID.equals(String.valueOf(row.get("paymentStatus")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "当前付款状态不可重复标记");
         }
+        String oldPaymentStatus = String.valueOf(row.get("paymentStatus"));
         BigDecimal total = toBigDecimal(row.get("totalAmount"));
         BigDecimal paid = body != null && body.paidAmount() != null ? body.paidAmount() : total;
         LocalDateTime now = LocalDateTime.now();
@@ -280,8 +316,10 @@ public class ExpenseService {
                 .set(OaExpense::getUpdatedAt, now)
                 .setSql("version = version + 1");
         expenseMapper.update(null, uw);
-        auditService.safeRecordOperation(authService.currentUser().id(),
-                "EXPENSE_MARK_PAID", "EXPENSE", id, AuditService.SUCCESS, null);
+        // Record audit with payment status diff
+        Map<String, Object> oldValues = Map.of("paymentStatus", oldPaymentStatus);
+        Map<String, Object> newValues = Map.of("paymentStatus", PAID, "paidAmount", paid);
+        auditService.recordUpdate(authService.currentUser().id(), "EXPENSE", id, oldValues, newValues);
         return detail(id);
     }
 

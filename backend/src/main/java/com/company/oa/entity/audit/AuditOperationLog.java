@@ -36,6 +36,10 @@ public class AuditOperationLog {
 
     private String ipAddress;
 
+    private String oldValue;
+
+    private String newValue;
+
     private LocalDateTime operatedAt;
 
 }

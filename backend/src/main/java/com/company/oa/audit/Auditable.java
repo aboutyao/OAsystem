@@ -9,4 +9,5 @@ public @interface Auditable {
     String action();
     String entityType() default "";
     String description() default "";
+    boolean captureDiff() default false;
 }

@@ -2,9 +2,12 @@ package com.company.oa.org;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.company.oa.auth.AuthService;
+import com.company.oa.auth.AuthUser;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
+import com.company.oa.common.service.DataMaskService;
 import com.company.oa.common.service.PaginationHelper;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.entity.org.Dept;
@@ -64,13 +67,16 @@ public class OrgService {
     private final PasswordEncoder passwordEncoder;
     private final SequenceService sequenceService;
     private final ObjectMapper objectMapper;
+    private final AuthService authService;
+    private final DataMaskService dataMaskService;
 
     public OrgService(UserMapper userMapper, DeptMapper deptMapper, PositionMapper positionMapper,
                       RankMapper rankMapper, UserDeptMapper userDeptMapper, ChangeLogMapper changeLogMapper,
                       PermUserRoleMapper permUserRoleMapper, PermRoleMapper permRoleMapper,
                       SysConfigMapper sysConfigMapper, PaginationHelper paginationHelper,
                       PasswordEncoder passwordEncoder,
-                      SequenceService sequenceService, ObjectMapper objectMapper) {
+                      SequenceService sequenceService, ObjectMapper objectMapper,
+                      AuthService authService, DataMaskService dataMaskService) {
         this.userMapper = userMapper;
         this.deptMapper = deptMapper;
         this.positionMapper = positionMapper;
@@ -84,6 +90,8 @@ public class OrgService {
         this.passwordEncoder = passwordEncoder;
         this.sequenceService = sequenceService;
         this.objectMapper = objectMapper;
+        this.authService = authService;
+        this.dataMaskService = dataMaskService;
     }
 
     @SuppressWarnings("unchecked")
@@ -234,6 +242,9 @@ public class OrgService {
                         .and(w -> w.eq(User::getMainDeptId, deptId)
                                 .or().exists("select 1 from org_user_dept ud where ud.user_id = org_user.id and ud.dept_id = {0}", deptId)));
         List<Map<String, Object>> items = userMapper.selectDeptUsers(deptId, ps[1], (ps[0] - 1) * ps[1]);
+        if (!isAdmin()) {
+            items = items.stream().map(this::maskUserSensitiveFields).toList();
+        }
         return new PageResponse<>(ps[0], ps[1], total, items);
     }
 
@@ -266,6 +277,9 @@ public class OrgService {
         String accs = StringUtils.hasText(accountStatus) ? accountStatus.trim() : null;
         List<Map<String, Object>> items = userMapper.selectUserList(kw, ps[1], (ps[0] - 1) * ps[1],
                 mainDeptId, es, accs);
+        if (!isAdmin()) {
+            items = items.stream().map(this::maskUserSensitiveFields).toList();
+        }
         return new PageResponse<>(ps[0], ps[1], total, items);
     }
 
@@ -278,7 +292,7 @@ public class OrgService {
         Map<String, Object> result = new LinkedHashMap<>(user);
         List<Long> roleIds = userMapper.selectRoleIdsByUserId(id);
         result.put("roleIds", roleIds);
-        return result;
+        return maskUserSensitiveFields(result);
     }
 
     @Transactional
@@ -811,6 +825,36 @@ public class OrgService {
             cur = parentMap.get(cur);
         }
         return false;
+    }
+
+    private boolean isAdmin() {
+        try {
+            AuthUser user = authService.currentUser();
+            return user.permissions().contains("*");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> maskUserSensitiveFields(Map<String, Object> user) {
+        if (isAdmin()) {
+            return user;
+        }
+        Map<String, Object> masked = new LinkedHashMap<>(user);
+        if (masked.get("mobile") != null) {
+            masked.put("mobile", dataMaskService.maskPhone(String.valueOf(masked.get("mobile"))));
+        }
+        if (masked.get("email") != null) {
+            masked.put("email", dataMaskService.maskEmail(String.valueOf(masked.get("email"))));
+        }
+        if (masked.get("realName") != null) {
+            masked.put("realName", dataMaskService.maskName(String.valueOf(masked.get("realName"))));
+        }
+        if (masked.get("real_name") != null) {
+            masked.put("real_name", dataMaskService.maskName(String.valueOf(masked.get("real_name"))));
+        }
+        return masked;
     }
 
     private String emptyToNull(String s) {

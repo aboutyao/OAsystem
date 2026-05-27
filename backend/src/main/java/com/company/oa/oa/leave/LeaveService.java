@@ -19,6 +19,7 @@ import com.company.oa.oa.mapper.OaLeaveMapper;
 import com.company.oa.workflow.WorkflowDtos;
 import com.company.oa.system.WorkCalendarService;
 import com.company.oa.workflow.WorkflowService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,11 +48,13 @@ public class LeaveService {
     private final WorkCalendarService workCalendarService;
     private final SequenceService sequenceService;
     private final UserMapper userMapper;
+    private final ObjectMapper objectMapper;
 
     public LeaveService(OaLeaveMapper oaLeaveMapper, PaginationHelper paginationHelper,
                         AuthService authService, WorkflowService workflowService,
                         AuditService auditService, WorkCalendarService workCalendarService,
-                        SequenceService sequenceService, UserMapper userMapper) {
+                        SequenceService sequenceService, UserMapper userMapper,
+                        ObjectMapper objectMapper) {
         this.oaLeaveMapper = oaLeaveMapper;
         this.paginationHelper = paginationHelper;
         this.authService = authService;
@@ -59,6 +63,7 @@ public class LeaveService {
         this.workCalendarService = workCalendarService;
         this.sequenceService = sequenceService;
         this.userMapper = userMapper;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -126,6 +131,16 @@ public class LeaveService {
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可编辑");
         }
+        // Capture old values for audit diff
+        Map<String, Object> oldValues = new HashMap<>();
+        oldValues.put("leaveType", row.get("leaveType"));
+        oldValues.put("startAt", row.get("startAt"));
+        oldValues.put("endAt", row.get("endAt"));
+        oldValues.put("durationHours", row.get("durationHours"));
+        oldValues.put("durationDays", row.get("durationDays"));
+        oldValues.put("reason", row.get("reason"));
+        oldValues.put("handoverNote", row.get("handoverNote"));
+
         OaLeave entity = new OaLeave();
         entity.setLeaveType(req.leaveType());
         entity.setStartAt(req.startAt());
@@ -137,6 +152,18 @@ public class LeaveService {
         oaLeaveMapper.update(entity, new LambdaQueryWrapper<OaLeave>()
                 .eq(OaLeave::getId, id)
                 .eq(OaLeave::getDeleted, 0));
+
+        // Capture new values and record audit diff
+        Map<String, Object> newValues = new HashMap<>();
+        newValues.put("leaveType", req.leaveType());
+        newValues.put("startAt", req.startAt());
+        newValues.put("endAt", req.endAt());
+        newValues.put("durationHours", req.durationHours());
+        newValues.put("durationDays", req.durationDays());
+        newValues.put("reason", req.reason());
+        newValues.put("handoverNote", req.handoverNote());
+        auditService.recordUpdate(authService.currentUser().id(), "LEAVE", id, oldValues, newValues);
+
         return detail(id);
     }
 
@@ -147,6 +174,7 @@ public class LeaveService {
         if (!DRAFT.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅草稿可提交");
         }
+        String oldStatus = String.valueOf(row.get("status"));
         String title = "请假申请-" + row.get("leaveType") + "-" + id;
         Map<String, Object> wf = workflowService.startInstance(new WorkflowDtos.StartInstanceRequest(
                 "LEAVE",
@@ -164,8 +192,10 @@ public class LeaveService {
                 .eq(OaLeave::getDeleted, 0));
         Map<String, Object> out = detail(id);
         out.put("currentNodeName", wf.get("currentNodeName"));
-        auditService.safeRecordOperation(authService.currentUser().id(),
-                "LEAVE_SUBMIT", "LEAVE", id, AuditService.SUCCESS, null);
+        // Record audit with status diff
+        Map<String, Object> oldValues = Map.of("status", oldStatus);
+        Map<String, Object> newValues = Map.of("status", APPROVING);
+        auditService.recordUpdate(authService.currentUser().id(), "LEAVE", id, oldValues, newValues);
         return out;
     }
 
@@ -176,6 +206,7 @@ public class LeaveService {
         if (!APPROVING.equals(String.valueOf(row.get("status")))) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "仅审批中可撤回");
         }
+        String oldStatus = String.valueOf(row.get("status"));
         Object wfInst = row.get("wfInstanceId");
         if (wfInst == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "未关联流程实例");
@@ -183,8 +214,10 @@ public class LeaveService {
         long wfInstanceId = ((Number) wfInst).longValue();
         workflowService.withdrawInstance(wfInstanceId);
         oaLeaveMapper.updateStatusClearFlowKeysById(id, "WITHDRAWN", LocalDateTime.now());
-        auditService.safeRecordOperation(authService.currentUser().id(),
-                "LEAVE_WITHDRAW", "LEAVE", id, AuditService.SUCCESS, null);
+        // Record audit with status diff
+        Map<String, Object> oldValues = Map.of("status", oldStatus);
+        Map<String, Object> newValues = Map.of("status", "WITHDRAWN");
+        auditService.recordUpdate(authService.currentUser().id(), "LEAVE", id, oldValues, newValues);
         return detail(id);
     }
 
@@ -196,6 +229,7 @@ public class LeaveService {
         if (!DRAFT.equals(st) && !APPROVING.equals(st)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可作废");
         }
+        String oldStatus = st;
         if (APPROVING.equals(st)) {
             Object wfInst = row.get("wfInstanceId");
             if (wfInst != null) {
@@ -204,8 +238,10 @@ public class LeaveService {
         } else {
             oaLeaveMapper.updateStatusById(id, CANCELLED, LocalDateTime.now());
         }
-        auditService.safeRecordOperation(authService.currentUser().id(),
-                "LEAVE_CANCEL", "LEAVE", id, AuditService.SUCCESS, null);
+        // Record audit with status diff
+        Map<String, Object> oldValues = Map.of("status", oldStatus);
+        Map<String, Object> newValues = Map.of("status", CANCELLED);
+        auditService.recordUpdate(authService.currentUser().id(), "LEAVE", id, oldValues, newValues);
         return detail(id);
     }
 
