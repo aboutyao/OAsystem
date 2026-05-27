@@ -19,6 +19,8 @@ export interface LoginResponse {
   accessToken: string
   expiresIn: number
   user: CurrentUser
+  passwordExpired?: boolean
+  requires2FA?: boolean
 }
 
 export function login(payload: LoginRequest) {
@@ -48,4 +50,22 @@ export function logout() {
 
 export function changePassword(oldPassword: string, newPassword: string) {
   return http.post<unknown, { changed: boolean }>('/auth/change-password', { oldPassword, newPassword })
+}
+
+// ========== Two-Factor Authentication ==========
+
+export function verifyTwoFactor(tempToken: string, code: string) {
+  return http.post<unknown, LoginResponse>('/auth/2fa/verify', { tempToken, code })
+}
+
+export function setupTwoFactor() {
+  return http.post<unknown, { secret: string; qrCode: string }>('/auth/2fa/setup')
+}
+
+export function enableTwoFactor(secret: string, code: string) {
+  return http.post<unknown, { enabled: boolean }>('/auth/2fa/enable', { secret, code })
+}
+
+export function disableTwoFactor(code: string) {
+  return http.post<unknown, { disabled: boolean }>('/auth/2fa/disable', { code })
 }

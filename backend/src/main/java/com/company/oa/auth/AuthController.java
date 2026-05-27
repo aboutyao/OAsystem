@@ -51,9 +51,38 @@ public class AuthController {
         return authService.currentUser();
     }
 
+    @GetMapping("/password-status")
+    public Map<String, Object> passwordStatus() {
+        return authService.passwordStatus();
+    }
+
     @GetMapping("/menus")
     public List<Map<String, Object>> menus() {
         return authService.menusForCurrentUser();
+    }
+
+    // ========== Two-Factor Authentication ==========
+
+    @PostMapping("/2fa/verify")
+    public LoginResponse verifyTwoFactor(@Valid @RequestBody TwoFactorVerifyRequest request) {
+        return authService.verifyTwoFactor(request.tempToken(), request.code());
+    }
+
+    @PostMapping("/2fa/setup")
+    public Map<String, Object> setupTwoFactor() {
+        return authService.setupTwoFactor();
+    }
+
+    @PostMapping("/2fa/enable")
+    public Map<String, Object> enableTwoFactor(@Valid @RequestBody TwoFactorEnableRequest request) {
+        authService.enableTwoFactor(request.secret(), request.code());
+        return Map.of("enabled", true);
+    }
+
+    @PostMapping("/2fa/disable")
+    public Map<String, Object> disableTwoFactor(@Valid @RequestBody TwoFactorDisableRequest request) {
+        authService.disableTwoFactor(request.code());
+        return Map.of("disabled", true);
     }
 
     public record LoginRequest(
@@ -61,6 +90,23 @@ public class AuthController {
             @NotBlank String password,
             String captchaId,
             String captchaCode
+    ) {
+    }
+
+    public record TwoFactorVerifyRequest(
+            @NotBlank String tempToken,
+            @NotBlank String code
+    ) {
+    }
+
+    public record TwoFactorEnableRequest(
+            @NotBlank String secret,
+            @NotBlank String code
+    ) {
+    }
+
+    public record TwoFactorDisableRequest(
+            @NotBlank String code
     ) {
     }
 }

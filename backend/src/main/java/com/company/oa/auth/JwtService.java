@@ -46,6 +46,30 @@ public class JwtService {
         );
     }
 
+    public String generateTempToken(Long userId) {
+        long now = Instant.now().getEpochSecond();
+        return sign(
+                Map.of("alg", "HS256", "typ", "JWT"),
+                Map.of(
+                        "sub", String.valueOf(userId),
+                        "type", "2fa_temp",
+                        "iat", now,
+                        "exp", now + 300
+                )
+        );
+    }
+
+    public boolean isTempToken(String token) {
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) return false;
+            Map<?, ?> payload = objectMapper.readValue(Base64.getUrlDecoder().decode(parts[1]), Map.class);
+            return "2fa_temp".equals(payload.get("type"));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public Long parseUserId(String token) {
         try {
             String[] parts = token.split("\\.");

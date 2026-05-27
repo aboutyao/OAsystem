@@ -145,6 +145,12 @@ public interface UserMapper extends BaseMapper<User> {
     @Update("update org_user set locked_until = #{lockedUntil} where id = #{userId}")
     int updateLockedUntil(@Param("userId") long userId, @Param("lockedUntil") java.time.LocalDateTime lockedUntil);
 
-    @Update("update org_user set password_hash = #{passwordHash}, password_changed_at = #{now}, updated_at = #{now} where id = #{userId}")
-    int updatePasswordHash(@Param("userId") long userId, @Param("passwordHash") String passwordHash, @Param("now") java.time.LocalDateTime now);
+    @Update("update org_user set password_hash = #{passwordHash}, password_changed_at = #{now}, password_expires_at = #{expiresAt}, updated_at = #{now} where id = #{userId}")
+    int updatePasswordHash(@Param("userId") long userId, @Param("passwordHash") String passwordHash, @Param("now") java.time.LocalDateTime now, @Param("expiresAt") java.time.LocalDateTime expiresAt);
+
+    @Update("update org_user set totp_secret = #{secret}, totp_enabled = 1, updated_at = now() where id = #{userId}")
+    int enableTotp(@Param("userId") long userId, @Param("secret") String secret);
+
+    @Update("update org_user set totp_secret = null, totp_enabled = 0, updated_at = now() where id = #{userId}")
+    int disableTotp(@Param("userId") long userId);
 }

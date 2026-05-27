@@ -11,6 +11,8 @@ const router = useRouter()
 const authStore = useAuthStore()
 const isCollapsed = ref(false)
 const dashSummary = ref<DashboardSummary | null>(null)
+const mobileMenuOpen = ref(false)
+const isDark = ref(localStorage.getItem('theme') === 'dark')
 
 // Real-time notification via SSE
 const { connected: sseConnected, connect: connectSSE } = useNotificationSSE(undefined, { autoConnect: false })
@@ -137,6 +139,9 @@ const breadcrumbs = computed(() => {
 })
 
 onMounted(async () => {
+  // Apply saved theme on load
+  if (isDark.value) document.documentElement.dataset.theme = 'dark'
+
   if (authStore.token && !authStore.user) {
     await authStore.loadCurrentUser()
   } else if (authStore.token && authStore.menus.length === 0) {
@@ -177,11 +182,27 @@ function goChangePassword() {
 function goNotifications() {
   router.push('/messages')
 }
+
+function toggleTheme() {
+  isDark.value = !isDark.value
+  document.documentElement.dataset.theme = isDark.value ? 'dark' : 'light'
+  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+}
+
+function closeMobileMenu() {
+  mobileMenuOpen.value = false
+}
 </script>
 
 <template>
   <el-container class="app-shell">
-    <el-aside class="app-shell__aside" :width="asideWidth" :class="{ 'is-collapsed': isCollapsed }">
+    <!-- Mobile hamburger toggle -->
+    <div class="app-shell__mobile-toggle" @click="mobileMenuOpen = true">
+      <el-icon :size="20"><Fold /></el-icon>
+    </div>
+    <!-- Mobile overlay -->
+    <div v-if="mobileMenuOpen" class="app-shell__mobile-overlay" @click="mobileMenuOpen = false" />
+    <el-aside class="app-shell__aside" :width="asideWidth" :class="{ 'is-collapsed': isCollapsed, 'is-open': mobileMenuOpen }">
       <div class="app-shell__brand">
         <el-icon :size="24"><Monitor /></el-icon>
         <span v-show="!isCollapsed" class="app-shell__brand-text">企业 OA</span>
@@ -193,6 +214,7 @@ function goNotifications() {
           :collapse="isCollapsed"
           :collapse-transition="false"
           class="app-shell__menu"
+          @select="closeMobileMenu"
         >
           <template v-for="group in authStore.navGroups" :key="group.id">
             <el-sub-menu v-if="group.children.length > 1" :index="String(group.id)">
@@ -325,6 +347,9 @@ function goNotifications() {
           <el-badge :value="notificationCount" :hidden="notificationCount === 0" :max="99" class="app-shell__notification" @click="goNotifications">
             <el-icon :size="20"><Bell /></el-icon>
           </el-badge>
+          <div class="app-shell__theme-toggle" @click="toggleTheme">
+            <el-icon :size="20"><Sunny v-if="isDark" /><Moon v-else /></el-icon>
+          </div>
           <el-dropdown trigger="click" @command="(cmd: string) => { if (cmd === 'profile') goProfile(); else if (cmd === 'password') goChangePassword(); else logout() }">
             <div class="app-shell__user-info">
               <el-avatar :size="32" style="background: var(--oa-primary); cursor: pointer">
@@ -502,5 +527,71 @@ function goNotifications() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Theme toggle */
+.app-shell__theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--oa-radius-sm);
+  cursor: pointer;
+  color: var(--oa-text-secondary);
+  transition: all var(--oa-transition);
+}
+.app-shell__theme-toggle:hover {
+  background: var(--oa-bg-page);
+  color: var(--oa-primary);
+}
+
+/* Mobile hamburger toggle */
+.app-shell__mobile-toggle {
+  display: none;
+}
+
+/* Mobile overlay */
+.app-shell__mobile-overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-shell__mobile-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 1001;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--oa-radius-sm);
+    background: var(--oa-bg-card);
+    border: 1px solid var(--oa-border);
+    cursor: pointer;
+    color: var(--oa-text-primary);
+    box-shadow: var(--oa-shadow-sm);
+  }
+  .app-shell__mobile-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.4);
+  }
+  .app-shell__aside {
+    position: fixed !important;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  .app-shell__aside.is-open {
+    transform: translateX(0);
+  }
+  .app-shell__header {
+    padding-left: 56px;
+  }
 }
 </style>

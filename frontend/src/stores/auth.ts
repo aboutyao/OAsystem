@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { authMenus, login, logout as apiLogout, me, type AuthMenuItem, type CurrentUser } from '../api/auth'
+import { authMenus, login, logout as apiLogout, me, type AuthMenuItem, type CurrentUser, type LoginResponse } from '../api/auth'
+import { http } from '../api/http'
 
 const TOKEN_KEY = 'oa_access_token'
 
@@ -43,6 +44,7 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem(TOKEN_KEY))
   const user = ref<CurrentUser | null>(null)
   const menus = ref<AuthMenuItem[]>([])
+  const passwordExpired = ref(false)
 
   const isAuthenticated = computed(() => Boolean(token.value))
 
@@ -118,10 +120,24 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function signIn(username: string, password: string) {
+  async function signIn(username: string, password: string): Promise<LoginResponse> {
     const result = await login({ username, password })
+    if (!result.requires2FA) {
+      token.value = result.accessToken
+      user.value = result.user
+      passwordExpired.value = result.passwordExpired || false
+      localStorage.setItem(TOKEN_KEY, result.accessToken)
+      await loadMenus()
+    }
+    return result
+  }
+
+  async function completeTwoFactor(tempToken: string, code: string) {
+    const { verifyTwoFactor } = await import('../api/auth')
+    const result = await verifyTwoFactor(tempToken, code)
     token.value = result.accessToken
     user.value = result.user
+    passwordExpired.value = result.passwordExpired || false
     localStorage.setItem(TOKEN_KEY, result.accessToken)
     await loadMenus()
   }
@@ -141,6 +157,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     user.value = null
     menus.value = []
+    passwordExpired.value = false
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem('oa_user')
   }
@@ -171,8 +188,10 @@ export const useAuthStore = defineStore('auth', () => {
     isSuperUser,
     isRouteAllowed,
     signIn,
+    completeTwoFactor,
     signOut,
     loadCurrentUser,
     loadMenus,
+    passwordExpired,
   }
 })

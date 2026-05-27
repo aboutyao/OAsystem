@@ -17,6 +17,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,6 +32,7 @@ public class AuthService {
     private final AuditService auditService;
     private final ObjectProvider<HttpServletRequest> requestProvider;
     private final LoginRateLimiter loginRateLimiter;
+    private final TwoFactorService twoFactorService;
 
     public AuthService(
             UserMapper userMapper,
@@ -39,7 +41,8 @@ public class AuthService {
             JwtService jwtService,
             AuditService auditService,
             ObjectProvider<HttpServletRequest> requestProvider,
-            LoginRateLimiter loginRateLimiter
+            LoginRateLimiter loginRateLimiter,
+            TwoFactorService twoFactorService
     ) {
         this.userMapper = userMapper;
         this.authSqlMapper = authSqlMapper;
@@ -48,6 +51,7 @@ public class AuthService {
         this.auditService = auditService;
         this.requestProvider = requestProvider;
         this.loginRateLimiter = loginRateLimiter;
+        this.twoFactorService = twoFactorService;
     }
 
     public LoginResponse login(AuthController.LoginRequest request) {
@@ -85,9 +89,22 @@ public class AuthService {
         userMapper.updateLoginSuccess(userId);
         loginRateLimiter.reset(ip);
 
+        boolean passwordExpired = isPasswordExpired(userRow);
+
+        // Check if 2FA is enabled
+        Map<String, Object> totpInfo = authSqlMapper.selectTotpInfo(userId);
+        boolean totpEnabled = totpInfo != null && Boolean.TRUE.equals(totpInfo.get("totp_enabled"));
+
         AuthUser user = loadUser(userId);
         safeRecordLoginSuccess(userId, user.username(), ip, ua);
-        return new LoginResponse(jwtService.generateToken(user), jwtService.expiresInSeconds(), user);
+
+        if (totpEnabled) {
+            // Return a temporary token and flag that 2FA is required
+            String tempToken = jwtService.generateTempToken(userId);
+            return new LoginResponse(tempToken, 300, user, passwordExpired, true);
+        }
+
+        return new LoginResponse(jwtService.generateToken(user), jwtService.expiresInSeconds(), user, passwordExpired, false);
     }
 
     private void safeRecordLoginSuccess(Long userId, String username, String ip, String ua) {
@@ -225,7 +242,9 @@ public class AuthService {
         validatePasswordComplexity(newPassword);
 
         LocalDateTime now = LocalDateTime.now();
-        userMapper.updatePasswordHash(userId, passwordEncoder.encode(newPassword), now);
+        int expiryDays = intConfig("security.password.expiryDays", 90);
+        LocalDateTime expiresAt = now.plusDays(expiryDays);
+        userMapper.updatePasswordHash(userId, passwordEncoder.encode(newPassword), now, expiresAt);
     }
 
     private void validatePasswordComplexity(String password) {
@@ -249,5 +268,123 @@ public class AuthService {
         if (!password.matches(".*[^a-zA-Z0-9].*")) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "密码必须包含至少一个特殊字符");
         }
+    }
+
+    private boolean isPasswordExpired(Map<String, Object> userRow) {
+        Object expiresAt = userRow.get("password_expires_at");
+        if (expiresAt == null) {
+            return false;
+        }
+        LocalDateTime expiryTime;
+        if (expiresAt instanceof Timestamp ts) {
+            expiryTime = ts.toLocalDateTime();
+        } else if (expiresAt instanceof LocalDateTime ldt) {
+            expiryTime = ldt;
+        } else {
+            return false;
+        }
+        return expiryTime.isBefore(LocalDateTime.now());
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> passwordStatus() {
+        AuthUser user = currentUser();
+        Map<String, Object> row = authSqlMapper.selectUserByUsername(user.username());
+        if (row == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        Object expiresAt = row.get("password_expires_at");
+        if (expiresAt == null) {
+            result.put("expired", false);
+            result.put("expiresAt", null);
+            result.put("daysRemaining", null);
+            return result;
+        }
+
+        LocalDateTime expiryTime;
+        if (expiresAt instanceof Timestamp ts) {
+            expiryTime = ts.toLocalDateTime();
+        } else if (expiresAt instanceof LocalDateTime ldt) {
+            expiryTime = ldt;
+        } else {
+            result.put("expired", false);
+            result.put("expiresAt", null);
+            result.put("daysRemaining", null);
+            return result;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        boolean expired = expiryTime.isBefore(now);
+        long daysRemaining = java.time.Duration.between(now, expiryTime).toDays();
+
+        result.put("expired", expired);
+        result.put("expiresAt", expiryTime);
+        result.put("daysRemaining", daysRemaining);
+        return result;
+    }
+
+    // ========== Two-Factor Authentication ==========
+
+    @Transactional
+    public LoginResponse verifyTwoFactor(String tempToken, String code) {
+        if (!jwtService.isTempToken(tempToken)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "无效的临时令牌");
+        }
+
+        Long userId = jwtService.parseUserId(tempToken);
+        Map<String, Object> totpInfo = authSqlMapper.selectTotpInfo(userId);
+        if (totpInfo == null || !Boolean.TRUE.equals(totpInfo.get("totp_enabled"))) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "二步验证未启用");
+        }
+
+        String secret = String.valueOf(totpInfo.get("totp_secret"));
+        if (!twoFactorService.verifyCode(secret, code)) {
+            throw new BusinessException(ErrorCode.USER_BAD_CREDENTIALS, "验证码错误");
+        }
+
+        AuthUser user = loadUser(userId);
+        return new LoginResponse(jwtService.generateToken(user), jwtService.expiresInSeconds(), user, false, false);
+    }
+
+    @Transactional
+    public Map<String, Object> setupTwoFactor() {
+        AuthUser authUser = currentUser();
+        String secret = twoFactorService.generateSecret();
+        String qrCodeImage = twoFactorService.getQrCodeImage(secret, authUser.username(), "OA System");
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("secret", secret);
+        result.put("qrCode", qrCodeImage);
+        return result;
+    }
+
+    @Transactional
+    public void enableTwoFactor(String secret, String code) {
+        AuthUser authUser = currentUser();
+
+        if (!twoFactorService.verifyCode(secret, code)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "验证码错误，请重试");
+        }
+
+        userMapper.enableTotp(authUser.id(), secret);
+    }
+
+    @Transactional
+    public void disableTwoFactor(String code) {
+        AuthUser authUser = currentUser();
+        Map<String, Object> totpInfo = authSqlMapper.selectTotpInfo(authUser.id());
+
+        if (totpInfo == null || !Boolean.TRUE.equals(totpInfo.get("totp_enabled"))) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "二步验证未启用");
+        }
+
+        String secret = String.valueOf(totpInfo.get("totp_secret"));
+        if (!twoFactorService.verifyCode(secret, code)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "验证码错误");
+        }
+
+        userMapper.disableTotp(authUser.id());
     }
 }

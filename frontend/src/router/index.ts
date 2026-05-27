@@ -84,6 +84,7 @@ import OrgChangeLogsView from '../views/org/OrgChangeLogsView.vue'
 import PermissionDataScopeView from '../views/permission/PermissionDataScopeView.vue'
 import PermissionFieldPermView from '../views/permission/PermissionFieldPermView.vue'
 import DelegationListView from '../views/workflow/DelegationListView.vue'
+import TwoFactorSetupView from '../views/auth/TwoFactorSetupView.vue'
 import WorkflowTemplateDesignerView from '../views/workflow/WorkflowTemplateDesignerView.vue'
 import WorkflowTemplateVersionsView from '../views/workflow/WorkflowTemplateVersionsView.vue'
 import RuleGroupsView from '../views/rule/RuleGroupsView.vue'
@@ -100,6 +101,7 @@ import PurchaseAcceptanceView from '../views/oa/purchases/PurchaseAcceptanceView
 import ContractArchiveView from '../views/contract/ContractArchiveView.vue'
 import ContractExpiryView from '../views/contract/ContractExpiryView.vue'
 import ContractReportView from '../views/contract/ContractReportView.vue'
+import ForceChangePasswordView from '../views/auth/ForceChangePasswordView.vue'
 
 const oaRoutes: RouteRecordRaw[] = [
   { path: 'oa/leaves/create', name: 'leave-create', component: LeaveFormView, meta: { title: '新建请假', module: 'oa' } },
@@ -228,6 +230,7 @@ const moduleRoutes: RouteRecordRaw[] = [
   { path: 'messages', name: 'message-list', component: MessageListView, meta: { title: '消息中心', module: 'message' } },
   { path: 'account/profile', name: 'account-profile', component: AccountProfileView, meta: { title: '个人信息', module: 'org' } },
   { path: 'account/change-password', name: 'account-change-password', component: AccountChangePasswordView, meta: { title: '修改密码', module: 'org' } },
+  { path: 'account/2fa-setup', name: 'account-2fa-setup', component: TwoFactorSetupView, meta: { title: '二步验证设置', module: 'org' } },
   { path: 'system', redirect: '/system/configs' },
   { path: 'system/configs', name: 'system-configs', component: SystemConfigsView, meta: { title: '系统参数', module: 'system' } },
   { path: 'system/dicts', name: 'system-dicts', component: SystemDictsView, meta: { title: '字典管理', module: 'system' } },
@@ -324,6 +327,8 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', name: 'login', component: LoginView },
+    { path: '/force-change-password', name: 'force-change-password', component: ForceChangePasswordView },
+    { path: '/2fa/setup', name: '2fa-setup', component: TwoFactorSetupView },
     {
       path: '/',
       component: AppShell,
@@ -344,6 +349,15 @@ router.beforeEach(async (to) => {
   if (to.path === '/login') {
     return true
   }
+  if (to.path === '/force-change-password') {
+    if (!authStore.isAuthenticated) {
+      return '/login'
+    }
+    return true
+  }
+  if (to.path === '/2fa/setup') {
+    return true
+  }
   if (!authStore.isAuthenticated) {
     return '/login'
   }
@@ -354,6 +368,9 @@ router.beforeEach(async (to) => {
       authStore.signOut()
       return '/login'
     }
+  }
+  if (authStore.passwordExpired) {
+    return '/force-change-password'
   }
   if (authStore.token && authStore.menus.length === 0) {
     try {

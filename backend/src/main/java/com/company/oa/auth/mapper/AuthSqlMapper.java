@@ -80,4 +80,7 @@ public interface AuthSqlMapper {
 
     @Select("select config_value from sys_config where config_key = #{key}")
     String selectConfigValue(@Param("key") String key);
+
+    @Select("select totp_secret, totp_enabled from org_user where id = #{userId} and deleted = 0")
+    Map<String, Object> selectTotpInfo(@Param("userId") long userId);
 }

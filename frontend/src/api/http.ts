@@ -19,6 +19,9 @@ http.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  if (config.method && ['post', 'put', 'delete'].includes(config.method)) {
+    config.headers['X-Idempotency-Key'] = crypto.randomUUID()
+  }
   return config
 })
 
@@ -52,6 +55,8 @@ http.interceptors.response.use(
       window.location.href = '/login'
     } else if (status === 403) {
       ElMessage.error('无权限执行此操作')
+    } else if (status === 409) {
+      ElMessage.warning('重复请求，请勿重复提交')
     } else if (status === 429) {
       ElMessage.error('请求过于频繁，请稍后再试')
     } else if (status >= 500) {

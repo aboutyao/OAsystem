@@ -46,9 +46,15 @@ public class User extends SoftDeleteEntity {
 
     private LocalDateTime passwordChangedAt;
 
+    private LocalDateTime passwordExpiresAt;
+
     private Integer loginFailCount;
 
     private LocalDateTime lockedUntil;
+
+    private String totpSecret;
+
+    private Boolean totpEnabled;
 
     @TableField(exist = false)
     private String mainDeptName;

@@ -2,11 +2,15 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Lock } from '@element-plus/icons-vue'
 import { useAuthStore } from '../../stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const loading = ref(false)
+const showTwoFactor = ref(false)
+const tempToken = ref('')
+const twoFactorCode = ref('')
 const form = reactive({
   username: '',
   password: '',
@@ -16,13 +20,47 @@ const form = reactive({
 async function submit() {
   loading.value = true
   try {
-    await authStore.signIn(form.username, form.password)
-    router.push('/dashboard')
+    const result = await authStore.signIn(form.username, form.password)
+    if (result.requires2FA) {
+      tempToken.value = result.accessToken
+      showTwoFactor.value = true
+      ElMessage.info('请输入二步验证码')
+    } else if (result.passwordExpired) {
+      router.push('/force-change-password')
+    } else {
+      router.push('/dashboard')
+    }
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '登录失败')
   } finally {
     loading.value = false
   }
+}
+
+async function submitTwoFactor() {
+  if (!twoFactorCode.value || twoFactorCode.value.length !== 6) {
+    ElMessage.warning('请输入6位验证码')
+    return
+  }
+  loading.value = true
+  try {
+    await authStore.completeTwoFactor(tempToken.value, twoFactorCode.value)
+    if (authStore.passwordExpired) {
+      router.push('/force-change-password')
+    } else {
+      router.push('/dashboard')
+    }
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '验证码错误')
+  } finally {
+    loading.value = false
+  }
+}
+
+function cancelTwoFactor() {
+  showTwoFactor.value = false
+  tempToken.value = ''
+  twoFactorCode.value = ''
 }
 </script>
 
@@ -76,7 +114,8 @@ async function submit() {
 
       <!-- Form body -->
       <div class="login-panel__body">
-        <el-form label-position="top" @submit.prevent="submit">
+        <!-- Login form -->
+        <el-form v-if="!showTwoFactor" label-position="top" @submit.prevent="submit">
           <el-form-item label="账号">
             <el-input
               v-model="form.username"
@@ -106,6 +145,40 @@ async function submit() {
             @click="submit"
           >
             登录
+          </el-button>
+        </el-form>
+
+        <!-- Two-Factor Authentication form -->
+        <el-form v-else label-position="top" @submit.prevent="submitTwoFactor">
+          <div class="login-panel__2fa-header">
+            <el-icon :size="48" color="var(--oa-primary)"><Lock /></el-icon>
+            <h3>二步验证</h3>
+            <p>请输入您的身份验证器应用中的6位验证码</p>
+          </div>
+          <el-form-item label="验证码">
+            <el-input
+              v-model="twoFactorCode"
+              placeholder="请输入6位验证码"
+              maxlength="6"
+              size="large"
+              autofocus
+            />
+          </el-form-item>
+          <el-button
+            type="primary"
+            size="large"
+            :loading="loading"
+            class="login-panel__button"
+            @click="submitTwoFactor"
+          >
+            验证
+          </el-button>
+          <el-button
+            size="large"
+            class="login-panel__button"
+            @click="cancelTwoFactor"
+          >
+            返回登录
           </el-button>
         </el-form>
 
@@ -200,5 +273,23 @@ async function submit() {
   font-family: ui-monospace, monospace;
   font-size: 12px;
   color: var(--oa-primary);
+}
+
+.login-panel__2fa-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-panel__2fa-header h3 {
+  margin: 12px 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--oa-text-primary);
+}
+
+.login-panel__2fa-header p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--oa-text-secondary);
 }
 </style>
