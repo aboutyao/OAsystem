@@ -1,0 +1,1 @@
+ALTER TABLE wf_process_instance ADD COLUMN deleted TINYINT NOT NULL DEFAULT 0 COMMENT '软删除标志';

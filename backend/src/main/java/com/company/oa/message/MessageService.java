@@ -34,15 +34,18 @@ public class MessageService {
     private final AuthService authService;
     private final AuditService auditService;
     private final SequenceService sequenceService;
+    private final NotificationSseController notificationSseController;
 
     public MessageService(MsgMessageMapper messageMapper, PaginationHelper paginationHelper,
                           AuthService authService, AuditService auditService,
-                          SequenceService sequenceService) {
+                          SequenceService sequenceService,
+                          NotificationSseController notificationSseController) {
         this.messageMapper = messageMapper;
         this.paginationHelper = paginationHelper;
         this.authService = authService;
         this.auditService = auditService;
         this.sequenceService = sequenceService;
+        this.notificationSseController = notificationSseController;
     }
 
     @Transactional(readOnly = true)
@@ -169,6 +172,9 @@ public class MessageService {
         entity.setArchiveStatus(NORMAL);
         entity.setReadAt(null);
         messageMapper.insert(entity);
+
+        // Push real-time notification via SSE
+        notificationSseController.notifyUser(receiverId, messageType, title, content);
     }
 
     private void loadOwned(long id, long receiverId) {

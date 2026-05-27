@@ -31,3 +31,15 @@ minio:
   endpoint: http://minio:9000
   access-key: oa_minio_admin
   secret-key: minio123456
+
+spring.mail:
+  host: ${MAIL_HOST:localhost}
+  port: ${MAIL_PORT:587}
+  username: ${MAIL_USERNAME:}
+  password: ${MAIL_PASSWORD:}
+  properties:
+    mail:
+      smtp:
+        auth: true
+        starttls:
+          enable: true

@@ -41,6 +41,8 @@ public class WfProcessInstance extends BaseEntity {
 
     private LocalDateTime endedAt;
 
+    private Integer deleted;
+
     private LocalDateTime slaDeadline;
 
     private boolean slaBreached;

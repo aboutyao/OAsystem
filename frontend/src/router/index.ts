@@ -83,6 +83,7 @@ import OrgContactsView from '../views/org/OrgContactsView.vue'
 import OrgChangeLogsView from '../views/org/OrgChangeLogsView.vue'
 import PermissionDataScopeView from '../views/permission/PermissionDataScopeView.vue'
 import PermissionFieldPermView from '../views/permission/PermissionFieldPermView.vue'
+import DelegationListView from '../views/workflow/DelegationListView.vue'
 import WorkflowTemplateDesignerView from '../views/workflow/WorkflowTemplateDesignerView.vue'
 import WorkflowTemplateVersionsView from '../views/workflow/WorkflowTemplateVersionsView.vue'
 import RuleGroupsView from '../views/rule/RuleGroupsView.vue'
@@ -255,6 +256,7 @@ const moduleRoutes: RouteRecordRaw[] = [
   { path: 'workflow/instances', name: 'workflow-instances', component: WorkflowInstancesView, meta: { title: '流程实例', module: 'workflow' } },
   { path: 'workflow/exceptions', name: 'workflow-exceptions', component: WorkflowExceptionsView, meta: { title: '流程异常', module: 'workflow' } },
   { path: 'workflow/simulator', name: 'workflow-simulator', component: WorkflowSimulatorView, meta: { title: '流程模拟', module: 'workflow' } },
+  { path: 'workflow/delegations', name: 'workflow-delegations', component: DelegationListView, meta: { title: '审批委托', module: 'workflow' } },
   { path: 'rules/simulator', name: 'rule-simulator', component: RuleSimulatorView, meta: { title: '规则模拟', module: 'rule' } },
   { path: 'rules/groups', name: 'rule-groups', component: RuleGroupsView, meta: { title: '规则分组', module: 'rule' } },
   { path: 'rules/:id(\\d+)/edit', name: 'rule-edit', component: RuleEditView, meta: { title: '规则编辑', module: 'rule' } },

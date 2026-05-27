@@ -11,6 +11,7 @@ import com.company.oa.common.service.SequenceService;
 import com.company.oa.contract.mapper.ContractInfoMapper;
 import com.company.oa.entity.wf.*;
 import com.company.oa.message.MessageService;
+import com.company.oa.message.EmailService;
 import com.company.oa.oa.mapper.OaExpenseMapper;
 import com.company.oa.oa.mapper.OaLeaveMapper;
 import com.company.oa.oa.mapper.OaPurchaseMapper;
@@ -63,6 +64,7 @@ public class WorkflowService {
     private final AuthService authService;
     private final AuditService auditService;
     private final MessageService messageService;
+    private final EmailService emailService;
     private final SequenceService sequenceService;
     private final WfProcessTemplateMapper templateMapper;
     private final WfProcessVersionMapper versionMapper;
@@ -90,6 +92,7 @@ public class WorkflowService {
             AuthService authService,
             AuditService auditService,
             MessageService messageService,
+            EmailService emailService,
             SequenceService sequenceService,
             WfProcessTemplateMapper templateMapper,
             WfProcessVersionMapper versionMapper,
@@ -114,6 +117,7 @@ public class WorkflowService {
         this.authService = authService;
         this.auditService = auditService;
         this.messageService = messageService;
+        this.emailService = emailService;
         this.sequenceService = sequenceService;
         this.templateMapper = templateMapper;
         this.versionMapper = versionMapper;
@@ -469,6 +473,14 @@ public class WorkflowService {
             cc.setCreatedAt(now);
             ccRecordMapper.insert(cc);
             created.add(cc.getId());
+            // Send email notification to CC receiver
+            String ccEmail = getUserEmail(rid);
+            if (ccEmail != null) {
+                String instTitle = String.valueOf(inst.get("title"));
+                emailService.sendApprovalNotification(ccEmail, "您有一条新的抄送通知: " + instTitle,
+                        user.realName() + " 将「" + instTitle + "」抄送给您。" +
+                                (req.reason() == null ? "" : " 原因: " + req.reason()));
+            }
         }
         return Map.of("wfInstanceId", instanceId, "created", created);
     }
@@ -589,6 +601,12 @@ public class WorkflowService {
             String title = String.valueOf(inst.get("title"));
             messageService.send(starterId, "WORKFLOW", "您的申请已审批通过: " + title,
                     "您的" + title + "已通过全部审批节点，请查看审批结果。", "WORKFLOW", null, wfInstanceId);
+            // Send email notification
+            String email = getUserEmail(starterId);
+            if (email != null) {
+                emailService.sendApprovalNotification(email, "您的申请已审批通过: " + title,
+                        "您的" + title + "已通过全部审批节点，请查看审批结果。");
+            }
         } else {
             instanceMapper.updateCurrentNode(wfInstanceId, firstRuntimeTaskName(processInstanceId));
             syncPendingTasksFromFlowable(wfInstanceId, processInstanceId);
@@ -599,6 +617,12 @@ public class WorkflowService {
             for (Long nextAssigneeId : pendingAssigneeIds) {
                 messageService.send(nextAssigneeId, "WORKFLOW", "您有新的审批任务: " + title,
                         "请及时处理" + title + "的审批。", "WORKFLOW", null, wfInstanceId);
+                // Send email notification
+                String assigneeEmail = getUserEmail(nextAssigneeId);
+                if (assigneeEmail != null) {
+                    emailService.sendApprovalNotification(assigneeEmail, "您有新的审批任务: " + title,
+                            "请及时处理" + title + "的审批。");
+                }
             }
         }
         auditService.safeRecordOperation(user.id(), "WF_APPROVE", "WF_TASK", wfTaskId, AuditService.SUCCESS, null);
@@ -635,6 +659,12 @@ public class WorkflowService {
         String title = String.valueOf(inst.get("title"));
         messageService.send(starterId, "WORKFLOW", "您的申请已被驳回: " + title,
                 "您的" + title + "审批未通过，原因: " + (comment == null ? "无" : comment) + "。请修改后重新提交。", "WORKFLOW", null, wfInstanceId);
+        // Send email notification
+        String rejectEmail = getUserEmail(starterId);
+        if (rejectEmail != null) {
+            emailService.sendApprovalNotification(rejectEmail, "您的申请已被驳回: " + title,
+                    "您的" + title + "审批未通过，原因: " + (comment == null ? "无" : comment) + "。请修改后重新提交。");
+        }
         return instanceSummary(wfInstanceId);
     }
 
@@ -688,6 +718,12 @@ public class WorkflowService {
         messageService.send(assigneeId, "WORKFLOW", "催办提醒: " + title,
                 user.realName() + " 催促您尽快处理「" + title + "」的「" + nodeName + "」节点。",
                 "WORKFLOW", null, wfInstanceId);
+        // Send email notification
+        String remindEmail = getUserEmail(assigneeId);
+        if (remindEmail != null) {
+            emailService.sendApprovalNotification(remindEmail, "催办提醒: " + title,
+                    user.realName() + " 催促您尽快处理「" + title + "」的「" + nodeName + "」节点。");
+        }
         auditService.safeRecordOperation(user.id(), "WF_REMIND", "WF_TASK", wfTaskId, AuditService.SUCCESS, null);
         return Map.of("taskId", wfTaskId, "success", true, "remindedAt", java.time.LocalDateTime.now().toString());
     }
@@ -908,6 +944,12 @@ public class WorkflowService {
         // Notify starter: workflow terminated
         messageService.send(starterId, "WORKFLOW", "您的申请已被终止: " + inst.get("title"),
                 "您的" + inst.get("title") + "流程已被管理员终止。", "WORKFLOW", null, wfInstanceId);
+        // Send email notification
+        String termEmail = getUserEmail(starterId);
+        if (termEmail != null) {
+            emailService.sendApprovalNotification(termEmail, "您的申请已被终止: " + inst.get("title"),
+                    "您的" + inst.get("title") + "流程已被管理员终止。");
+        }
         return instanceSummary(wfInstanceId);
     }
 
@@ -1208,6 +1250,11 @@ public class WorkflowService {
 
     private long nextWfId(String table) {
         return sequenceService.nextId(table);
+    }
+
+    private String getUserEmail(long userId) {
+        com.company.oa.entity.org.User user = userMapper.selectById(userId);
+        return user != null ? user.getEmail() : null;
     }
 
 }

@@ -4,12 +4,16 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { getDashboardSummary, type DashboardSummary } from '../api/dashboard'
 import { globalSearch, type SearchResult } from '../api/search'
+import { useNotificationSSE } from '../composables/useNotificationSSE'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const isCollapsed = ref(false)
 const dashSummary = ref<DashboardSummary | null>(null)
+
+// Real-time notification via SSE
+const { connected: sseConnected, connect: connectSSE } = useNotificationSSE(undefined, { autoConnect: false })
 
 // Global search state
 const searchQuery = ref('')
@@ -139,6 +143,10 @@ onMounted(async () => {
     await authStore.loadMenus()
   }
   loadNotificationCount()
+  // Connect to SSE after user is loaded
+  if (authStore.token) {
+    connectSSE()
+  }
 })
 
 async function loadNotificationCount() {
