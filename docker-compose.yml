@@ -34,6 +34,25 @@ services:
       timeout: 5s
       retries: 5
 
+  minio:
+    image: minio/minio:latest
+    container_name: oa-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-oa_minio_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123456}
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -45,6 +64,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: trial
       DB_URL: jdbc:mysql://mysql:3306/oa_system?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
@@ -55,6 +76,9 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
       JWT_SECRET: ${JWT_SECRET:-change-me-to-a-strong-random-string-at-least-32bytes-long!}
       FILE_STORAGE_PATH: /var/oa/files
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-oa_minio_admin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minio123456}
     ports:
       - "8080:8080"
     volumes:
@@ -77,3 +101,4 @@ volumes:
   mysql_data:
   redis_data:
   oa_files:
+  minio_data:

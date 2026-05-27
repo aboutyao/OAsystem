@@ -669,9 +669,23 @@ public class WorkflowService {
         return Map.of("taskId", wfTaskId, "transferredTo", targetUserId, "operatedAt", now.toString());
     }
 
+    @Transactional
     public Map<String, Object> remindTask(long wfTaskId) {
-        loadWfTask(wfTaskId);
-        return Map.of("taskId", wfTaskId, "success", true);
+        AuthUser user = authService.currentUser();
+        Map<String, Object> task = loadWfTask(wfTaskId);
+        if (!PENDING.equals(String.valueOf(task.get("status")))) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "任务已处理，无需催办");
+        }
+        long assigneeId = ((Number) task.get("assigneeId")).longValue();
+        long wfInstanceId = ((Number) task.get("wfInstanceId")).longValue();
+        Map<String, Object> inst = loadInstance(wfInstanceId);
+        String title = String.valueOf(inst.get("title"));
+        String nodeName = String.valueOf(task.getOrDefault("taskName", "审批节点"));
+        messageService.send(assigneeId, "WORKFLOW", "催办提醒: " + title,
+                user.realName() + " 催促您尽快处理「" + title + "」的「" + nodeName + "」节点。",
+                "WORKFLOW", null, wfInstanceId);
+        auditService.safeRecordOperation(user.id(), "WF_REMIND", "WF_TASK", wfTaskId, AuditService.SUCCESS, null);
+        return Map.of("taskId", wfTaskId, "success", true, "remindedAt", java.time.LocalDateTime.now().toString());
     }
 
     // ─── Add Sign ──────────────────────────────────────────────────────────

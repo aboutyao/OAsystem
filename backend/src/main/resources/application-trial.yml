@@ -26,3 +26,8 @@ security:
   jwt:
     secret: ${JWT_SECRET:oa-system-trial-jwt-secret-must-be-at-least-32chars}
     expires-in-seconds: ${JWT_EXPIRES_IN_SECONDS:7200}
+
+minio:
+  endpoint: http://minio:9000
+  access-key: oa_minio_admin
+  secret-key: minio123456

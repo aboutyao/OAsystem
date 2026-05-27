@@ -4,6 +4,7 @@ import com.company.oa.common.api.PageResponse;
 import com.company.oa.org.mapper.UserMapper;
 import com.company.oa.permission.cache.PermissionCacheService;
 import com.company.oa.system.cache.SystemCacheService;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,8 +12,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,22 +29,53 @@ public class OpsHealthController {
     private final OpsService opsService;
     private final PermissionCacheService permissionCacheService;
     private final SystemCacheService systemCacheService;
+    private final DataSource dataSource;
+    private final StringRedisTemplate redisTemplate;
 
     public OpsHealthController(UserMapper userMapper, OpsService opsService,
-                               PermissionCacheService permissionCacheService, SystemCacheService systemCacheService) {
+                               PermissionCacheService permissionCacheService, SystemCacheService systemCacheService,
+                               DataSource dataSource, StringRedisTemplate redisTemplate) {
         this.userMapper = userMapper;
         this.opsService = opsService;
         this.permissionCacheService = permissionCacheService;
         this.systemCacheService = systemCacheService;
+        this.dataSource = dataSource;
+        this.redisTemplate = redisTemplate;
     }
 
     @GetMapping("/health")
     public Map<String, Object> health() {
-        return Map.of(
-                "status", "UP",
-                "service", "oa-system",
-                "time", OffsetDateTime.now()
-        );
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("service", "oa-system");
+        result.put("time", OffsetDateTime.now());
+
+        String mysqlStatus = "UP";
+        String redisStatus = "UP";
+
+        // Check MySQL connectivity
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("SELECT 1");
+        } catch (Exception e) {
+            mysqlStatus = "DOWN";
+        }
+
+        // Check Redis connectivity
+        try {
+            String pong = redisTemplate.getConnectionFactory().getConnection().ping();
+            if (!"PONG".equals(pong)) {
+                redisStatus = "DOWN";
+            }
+        } catch (Exception e) {
+            redisStatus = "DOWN";
+        }
+
+        boolean allUp = "UP".equals(mysqlStatus) && "UP".equals(redisStatus);
+        result.put("status", allUp ? "UP" : "DOWN");
+        result.put("mysql", mysqlStatus);
+        result.put("redis", redisStatus);
+
+        return result;
     }
 
     @PreAuthorize("hasAnyAuthority('*', 'audit:view')")

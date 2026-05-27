@@ -13,9 +13,12 @@ import com.company.oa.entity.file.FileInfo;
 import com.company.oa.entity.file.FileLibraryFolder;
 import com.company.oa.file.mapper.FileInfoMapper;
 import com.company.oa.file.mapper.FileLibraryFolderMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -31,16 +34,19 @@ public class FileLibraryService {
     private final AuthService authService;
     private final AuditService auditService;
     private final SequenceService sequenceService;
+    private final MinioStorageService minioStorageService;
 
     public FileLibraryService(FileLibraryFolderMapper folderMapper, FileInfoMapper fileInfoMapper,
                               PaginationHelper paginationHelper, AuthService authService,
-                              AuditService auditService, SequenceService sequenceService) {
+                              AuditService auditService, SequenceService sequenceService,
+                              MinioStorageService minioStorageService) {
         this.folderMapper = folderMapper;
         this.fileInfoMapper = fileInfoMapper;
         this.paginationHelper = paginationHelper;
         this.authService = authService;
         this.auditService = auditService;
         this.sequenceService = sequenceService;
+        this.minioStorageService = minioStorageService;
     }
 
     @Transactional(readOnly = true)
@@ -170,6 +176,47 @@ public class FileLibraryService {
     }
 
     @Transactional
+    public Map<String, Object> uploadFileContent(long fileId, MultipartFile multipartFile) {
+        Map<String, Object> file = detail(fileId);
+        AuthUser user = authService.currentUser();
+        String objectName = "library/" + fileId + "/" + file.get("fileName");
+        try {
+            minioStorageService.upload(objectName, multipartFile.getInputStream(),
+                    multipartFile.getContentType(), multipartFile.getSize());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "文件上传失败: " + e.getMessage());
+        }
+        LocalDateTime now = LocalDateTime.now();
+        fileInfoMapper.update(null, new LambdaUpdateWrapper<FileInfo>()
+                .eq(FileInfo::getId, fileId)
+                .eq(FileInfo::getDeleted, 0)
+                .set(FileInfo::getFileSize, multipartFile.getSize())
+                .set(FileInfo::getMimeType, multipartFile.getContentType())
+                .set(FileInfo::getUpdatedAt, now)
+                .setSql("version = version + 1"));
+        auditService.safeRecordOperation(user.id(), "FILE_UPLOAD", "FILE", fileId, AuditService.SUCCESS, null);
+        return detail(fileId);
+    }
+
+    public void downloadFileContent(long fileId, HttpServletResponse response) {
+        Map<String, Object> file = detail(fileId);
+        String objectName = "library/" + fileId + "/" + file.get("fileName");
+        String fileName = (String) file.get("fileName");
+        String mimeType = (String) file.getOrDefault("mimeType", "application/octet-stream");
+        try (InputStream stream = minioStorageService.download(objectName)) {
+            response.setContentType(mimeType);
+            response.setHeader("Content-Disposition", "attachment; filename=\"" +
+                    java.net.URLEncoder.encode(fileName, "UTF-8") + "\"");
+            stream.transferTo(response.getOutputStream());
+            response.getOutputStream().flush();
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "文件下载失败: " + e.getMessage());
+        }
+        AuthUser user = authService.currentUser();
+        auditService.safeRecordOperation(user.id(), "FILE_DOWNLOAD", "FILE", fileId, AuditService.SUCCESS, null);
+    }
+
+    @Transactional
     public Map<String, Object> move(long id, FileLibraryDtos.FileMoveRequest req) {
         detail(id);
         loadFolder(req.folderId());
@@ -227,6 +274,13 @@ public class FileLibraryService {
         List<Map<String, Object>> rows = fileInfoMapper.selectDeletedFileById(id);
         if (rows.isEmpty()) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "文件不存在于回收站");
+        }
+        String fileName = (String) rows.get(0).get("fileName");
+        String objectName = "library/" + id + "/" + fileName;
+        try {
+            minioStorageService.delete(objectName);
+        } catch (Exception e) {
+            // Log but don't fail - file may not exist in MinIO
         }
         fileInfoMapper.deleteDownloadLogsByFileId(id);
         fileInfoMapper.physicalDeleteFile(id);

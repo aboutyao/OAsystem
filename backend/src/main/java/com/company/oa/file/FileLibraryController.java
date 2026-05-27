@@ -1,6 +1,7 @@
 package com.company.oa.file;
 
 import com.company.oa.common.api.PageResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -64,6 +66,18 @@ public class FileLibraryController {
     @GetMapping("/files/{id}")
     public Map<String, Object> file(@PathVariable long id) {
         return fileLibraryService.detail(id);
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:create')")
+    @PostMapping("/files/{id}/upload")
+    public Map<String, Object> uploadFile(@PathVariable long id, @RequestParam("file") MultipartFile file) {
+        return fileLibraryService.uploadFileContent(id, file);
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:view')")
+    @GetMapping("/files/{id}/download")
+    public void downloadFile(@PathVariable long id, HttpServletResponse response) {
+        fileLibraryService.downloadFileContent(id, response);
     }
 
     @PreAuthorize("hasAnyAuthority('*', 'org:create')")
