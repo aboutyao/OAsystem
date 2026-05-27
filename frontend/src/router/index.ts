@@ -356,6 +356,7 @@ router.beforeEach(async (to) => {
     return true
   }
   if (to.path === '/2fa/setup') {
+    if (!authStore.isAuthenticated) return '/login'
     return true
   }
   if (!authStore.isAuthenticated) {

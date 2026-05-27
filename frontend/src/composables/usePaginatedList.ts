@@ -7,7 +7,7 @@ export function usePaginatedList<T = JsonObject>(
   defaultSize = 20,
 ) {
   const loading = ref(false)
-  const rows = ref<T[]>([]) as { value: T[] }
+  const rows = ref<T[]>([])
   const total = ref(0)
   const page = ref(1)
   const size = ref(defaultSize)

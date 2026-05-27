@@ -345,7 +345,10 @@ public class AuthService {
         }
 
         AuthUser user = loadUser(userId);
-        return new LoginResponse(jwtService.generateToken(user), jwtService.expiresInSeconds(), user, false, false);
+        Map<String, Object> userRow = authSqlMapper.selectUserByUsername(user.username());
+        boolean passwordExpired = isPasswordExpired(userRow);
+
+        return new LoginResponse(jwtService.generateToken(user), jwtService.expiresInSeconds(), user, passwordExpired, false);
     }
 
     @Transactional

@@ -15,6 +15,9 @@
   --oa-info: #6366f1;
   --oa-info-light: #e0e7ff;
 
+  --oa-bg: #ffffff;
+  --oa-bg-white: #ffffff;
+
   --oa-bg-page: #f8fafc;
   --oa-bg-card: #fff;
   --oa-bg-sidebar: #0f172a;
@@ -71,6 +74,9 @@
   --oa-danger-light: #7f1d1d;
   --oa-info: #a78bfa;
   --oa-info-light: #312e81;
+
+  --oa-bg: #1a1a2e;
+  --oa-bg-white: #16213e;
 
   --oa-bg-page: #0f172a;
   --oa-bg-card: #1e293b;
@@ -231,6 +237,10 @@ body {
 [data-theme="dark"] .el-tag {
   border-color: var(--oa-border);
 }
+[data-theme="dark"] .el-tag--success { --el-tag-text-color: #6ee7b7; }
+[data-theme="dark"] .el-tag--warning { --el-tag-text-color: #fcd34d; }
+[data-theme="dark"] .el-tag--danger { --el-tag-text-color: #fca5a5; }
+[data-theme="dark"] .el-tag--info { --el-tag-text-color: #a5b4fc; }
 [data-theme="dark"] .el-pagination .el-input__wrapper {
   background: var(--oa-bg-card);
 }

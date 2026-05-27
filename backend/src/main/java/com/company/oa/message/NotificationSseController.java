@@ -11,14 +11,17 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 @RestController
 @RequestMapping("/api/notifications")
 public class NotificationSseController {
     private static final Logger log = LoggerFactory.getLogger(NotificationSseController.class);
-    private final CopyOnWriteArrayList<SseEmitter> emitters = new CopyOnWriteArrayList<>();
+    private final ConcurrentHashMap<Long, CopyOnWriteArrayList<SseEmitter>> userEmitters = new ConcurrentHashMap<>();
     private final AuthService authService;
 
     public NotificationSseController(AuthService authService) {
@@ -28,13 +31,15 @@ public class NotificationSseController {
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream() {
         AuthUser user = authService.currentUser();
+        long userId = user.id();
         SseEmitter emitter = new SseEmitter(0L); // no timeout
+        CopyOnWriteArrayList<SseEmitter> emitters = userEmitters.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>());
+        emitters.add(emitter);
         emitter.onCompletion(() -> emitters.remove(emitter));
         emitter.onTimeout(() -> emitters.remove(emitter));
         emitter.onError(e -> emitters.remove(emitter));
-        emitters.add(emitter);
         try {
-            emitter.send(SseEmitter.event().name("connected").data(Map.of("userId", user.id())));
+            emitter.send(SseEmitter.event().name("connected").data(Map.of("userId", userId)));
         } catch (IOException e) {
             emitters.remove(emitter);
         }
@@ -42,7 +47,11 @@ public class NotificationSseController {
     }
 
     public void notifyUser(long userId, String type, String title, String content) {
-        for (SseEmitter emitter : emitters) {
+        List<SseEmitter> emitters = userEmitters.get(userId);
+        if (emitters == null) return;
+        Iterator<SseEmitter> it = emitters.iterator();
+        while (it.hasNext()) {
+            SseEmitter emitter = it.next();
             try {
                 emitter.send(SseEmitter.event().name("notification").data(Map.of(
                     "type", type, "title", title, "content", content,
@@ -50,7 +59,7 @@ public class NotificationSseController {
                 )));
             } catch (IOException e) {
                 log.warn("SSE emitter send failed, removing: {}", e.getMessage());
-                emitters.remove(emitter);
+                it.remove();
             }
         }
     }

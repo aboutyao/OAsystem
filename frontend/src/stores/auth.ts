@@ -145,6 +145,12 @@ export const useAuthStore = defineStore('auth', () => {
   async function loadCurrentUser() {
     if (!token.value) return
     user.value = await me()
+    try {
+      const status = await http.get<unknown, { expired: boolean; expiresAt: string; daysRemaining: number }>('/auth/password-status')
+      passwordExpired.value = status.expired
+    } catch {
+      // ignore
+    }
     await loadMenus()
   }
 
