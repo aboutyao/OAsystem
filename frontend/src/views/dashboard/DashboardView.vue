@@ -10,6 +10,8 @@ import {
   getDashboardNotices,
   getDashboardQuickActions,
   getMyLeaveBalance,
+  getDashboardInsights,
+  trackQuickAction,
   type DashboardSummary,
   type DashboardTodo,
   type DashboardStarted,
@@ -17,6 +19,7 @@ import {
   type DashboardNotice,
   type QuickAction,
   type LeaveBalanceItem,
+  type DashboardInsight,
 } from '../../api/dashboard'
 import { formatDisplayDateTime, statusLabel } from '../oa/oa-shared'
 import { Refresh } from '@element-plus/icons-vue'
@@ -31,6 +34,7 @@ const ccItems = ref<DashboardCcItem[]>([])
 const notices = ref<DashboardNotice[]>([])
 const quickActions = ref<QuickAction[]>([])
 const leaveBalances = ref<LeaveBalanceItem[]>([])
+const insight = ref<DashboardInsight | null>(null)
 const loading = ref(false)
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
@@ -74,7 +78,7 @@ const QUICK_ACTION_ICONS: Record<string, string> = {
 async function refresh() {
   loading.value = true
   try {
-    const [s, t, st, cc, n, a, lb] = await Promise.all([
+    const [s, t, st, cc, n, a, lb, ins] = await Promise.all([
       getDashboardSummary(),
       getDashboardTodos(8),
       getDashboardStarted(8),
@@ -82,6 +86,7 @@ async function refresh() {
       getDashboardNotices(8),
       getDashboardQuickActions(),
       getMyLeaveBalance(),
+      getDashboardInsights().catch(() => null),
     ])
     summary.value = s
     todos.value = t
@@ -90,6 +95,7 @@ async function refresh() {
     notices.value = n
     quickActions.value = a
     leaveBalances.value = lb
+    insight.value = ins
   } finally {
     loading.value = false
   }
@@ -98,6 +104,7 @@ async function refresh() {
 onMounted(refresh)
 
 function go(path: string) {
+  trackQuickAction(path).catch(() => {})
   router.push(path)
 }
 
@@ -189,6 +196,29 @@ const statCards = computed(() => [
         </div>
         <el-statistic :value="card.value" class="stat-card__value" />
         <div class="stat-card__label">{{ card.label }}</div>
+      </div>
+    </section>
+
+    <!-- AI Insights Banner -->
+    <section v-if="insight" class="insight-banner">
+      <div class="insight-banner__icon">
+        <el-icon :size="20"><MagicStick /></el-icon>
+      </div>
+      <div class="insight-banner__content">
+        <div class="insight-banner__briefing">{{ insight.briefing }}</div>
+        <div class="insight-banner__metrics">
+          <div v-if="insight.approvalVelocity" class="insight-metric">
+            <span class="insight-metric__label">审批效率</span>
+            <span class="insight-metric__value" :class="insight.approvalVelocity.fasterThanTeam ? 'text-success' : 'text-warning'">
+              {{ insight.approvalVelocity.fasterThanTeam ? '快于团队' : '低于平均' }}
+              {{ insight.approvalVelocity.speedRatio > 0 ? ` ${insight.approvalVelocity.speedRatio}x` : '' }}
+            </span>
+          </div>
+          <div v-if="insight.upcomingDeadlines?.length" class="insight-metric">
+            <span class="insight-metric__label">即将到期</span>
+            <span class="insight-metric__value text-warning">{{ insight.upcomingDeadlines.length }} 项</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -552,4 +582,65 @@ const statCards = computed(() => [
   font-size: 12px;
   color: var(--oa-text-secondary);
 }
+
+/* AI Insight Banner */
+.insight-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f0f7ff, #e8f4fd);
+  border: 1px solid #b3d8ff;
+  border-radius: var(--oa-radius-md);
+  margin-bottom: 20px;
+}
+
+.insight-banner__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.insight-banner__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.insight-banner__briefing {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--oa-text-primary);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.insight-banner__metrics {
+  display: flex;
+  gap: 20px;
+}
+
+.insight-metric {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.insight-metric__label {
+  font-size: 12px;
+  color: var(--oa-text-muted);
+}
+
+.insight-metric__value {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.text-success { color: #67C23A; }
+.text-warning { color: #E6A23C; }
 </style>

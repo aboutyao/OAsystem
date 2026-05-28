@@ -5,6 +5,13 @@ export interface SearchResult {
   users: JsonObject[]
   leaves: JsonObject[]
   files: JsonObject[]
+  expenses: JsonObject[]
+  purchases: JsonObject[]
+  contracts: JsonObject[]
+  seals: JsonObject[]
+  notices: JsonObject[]
+  workflows: JsonObject[]
+  totals: Record<string, number>
 }
 
 export function globalSearch(q: string, limit = 5) {

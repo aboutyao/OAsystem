@@ -121,14 +121,11 @@ public class ApprovalRuleEngine {
     }
 
     private Long findUserByRole(String roleCode) {
-        var users = userMapper.selectList(null);
-        for (User u : users) {
-            if (u.getMainDeptId() != null) {
-                // 简单实现：根据部门判断角色
-                return u.getId();
-            }
+        Long userId = userMapper.selectUserIdByRoleCode(roleCode);
+        if (userId == null) {
+            log.warn("No user found with role code: {}", roleCode);
         }
-        return null;
+        return userId;
     }
 
     private List<Long> getDefaultChain(long starterId) {

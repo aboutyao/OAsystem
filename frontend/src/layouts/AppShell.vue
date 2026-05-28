@@ -5,6 +5,9 @@ import { useAuthStore } from '../stores/auth'
 import { getDashboardSummary, type DashboardSummary } from '../api/dashboard'
 import { globalSearch, type SearchResult } from '../api/search'
 import { useNotificationSSE } from '../composables/useNotificationSSE'
+import CommandPalette from '../components/CommandPalette.vue'
+import NotificationCenter from '../components/NotificationCenter.vue'
+import SmartCalendar from '../components/SmartCalendar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,6 +16,9 @@ const isCollapsed = ref(false)
 const dashSummary = ref<DashboardSummary | null>(null)
 const mobileMenuOpen = ref(false)
 const isDark = ref(localStorage.getItem('theme') === 'dark')
+const commandPaletteRef = ref<InstanceType<typeof CommandPalette>>()
+const notificationCenterRef = ref<InstanceType<typeof NotificationCenter>>()
+const smartCalendarRef = ref<InstanceType<typeof SmartCalendar>>()
 
 // Real-time notification via SSE
 const { connected: sseConnected, connect: connectSSE } = useNotificationSSE(undefined, { autoConnect: false })
@@ -57,6 +63,24 @@ function navigateSearchResult(type: string, item: Record<string, unknown>) {
     case 'file':
       router.push(`/files/${item.id}`)
       break
+    case 'expense':
+      router.push(`/oa/expenses/${item.id}`)
+      break
+    case 'purchase':
+      router.push(`/oa/purchases/${item.id}`)
+      break
+    case 'contract':
+      router.push(`/contracts/${item.id}`)
+      break
+    case 'seal':
+      router.push(`/oa/seals/${item.id}`)
+      break
+    case 'notice':
+      router.push('/notices')
+      break
+    case 'workflow':
+      router.push('/applications')
+      break
   }
 }
 
@@ -70,7 +94,13 @@ function hasAnyResults(): boolean {
   return (
     (searchResults.value.users?.length ?? 0) > 0 ||
     (searchResults.value.leaves?.length ?? 0) > 0 ||
-    (searchResults.value.files?.length ?? 0) > 0
+    (searchResults.value.files?.length ?? 0) > 0 ||
+    (searchResults.value.expenses?.length ?? 0) > 0 ||
+    (searchResults.value.purchases?.length ?? 0) > 0 ||
+    (searchResults.value.contracts?.length ?? 0) > 0 ||
+    (searchResults.value.seals?.length ?? 0) > 0 ||
+    (searchResults.value.notices?.length ?? 0) > 0 ||
+    (searchResults.value.workflows?.length ?? 0) > 0
   )
 }
 
@@ -257,6 +287,20 @@ function closeMobileMenu() {
           </div>
         </div>
         <div class="app-shell__user">
+          <!-- Command Palette trigger -->
+          <div class="app-shell__header-action" @click="commandPaletteRef?.open()" title="命令面板 (⌘K)">
+            <el-icon :size="18"><Grid /></el-icon>
+          </div>
+          <!-- Calendar trigger -->
+          <div class="app-shell__header-action" @click="smartCalendarRef?.open()" title="智能日历">
+            <el-icon :size="18"><Calendar /></el-icon>
+          </div>
+          <!-- Notification Center trigger -->
+          <div class="app-shell__header-action" @click="notificationCenterRef?.open()" title="通知中心">
+            <el-badge :value="notificationCount" :hidden="notificationCount === 0" :max="99" type="danger">
+              <el-icon :size="18"><Bell /></el-icon>
+            </el-badge>
+          </div>
           <el-popover
             v-model:visible="searchPopoverVisible"
             placement="bottom-end"
@@ -384,6 +428,11 @@ function closeMobileMenu() {
       </el-main>
     </el-container>
   </el-container>
+
+  <!-- Smart Components -->
+  <CommandPalette ref="commandPaletteRef" />
+  <NotificationCenter ref="notificationCenterRef" />
+  <SmartCalendar ref="smartCalendarRef" />
 </template>
 
 <style scoped>
@@ -521,6 +570,23 @@ function closeMobileMenu() {
 
 .app-shell__user-info:hover {
   background: var(--oa-bg-page);
+}
+
+.app-shell__header-action {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--oa-radius-sm);
+  cursor: pointer;
+  transition: background var(--oa-transition);
+  color: var(--oa-text-secondary);
+}
+
+.app-shell__header-action:hover {
+  background: var(--oa-bg-page);
+  color: var(--oa-primary);
 }
 
 .app-shell__user-name {
