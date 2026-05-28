@@ -163,6 +163,9 @@ const activeStep = computed(() => {
         <el-button @click="router.push('/oa/leaves')">
           <el-icon><ArrowLeft /></el-icon>返回列表
         </el-button>
+        <el-button @click="window.print()">
+          <el-icon><Printer /></el-icon>打印
+        </el-button>
         <el-button v-if="status === 'DRAFT'" type="primary" @click="goEdit">编辑</el-button>
         <el-button v-if="status === 'DRAFT'" type="success" @click="handleSubmit">提交审批</el-button>
         <el-button v-if="status === 'APPROVING'" @click="handleWithdraw">撤回</el-button>

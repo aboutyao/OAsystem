@@ -168,7 +168,7 @@ public class SystemHealthController {
         jvm.put("nonHeapUsedMB", bytesToMB(nonHeap.getUsed()));
 
         RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
-        jvm.put("availableProcessors", runtimeMXBean.getAvailableProcessors());
+        jvm.put("availableProcessors", Runtime.getRuntime().availableProcessors());
 
         OperatingSystemMXBean osMXBean = ManagementFactory.getOperatingSystemMXBean();
         jvm.put("systemLoadAverage",

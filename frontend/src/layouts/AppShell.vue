@@ -8,6 +8,10 @@ import { useNotificationSSE } from '../composables/useNotificationSSE'
 import CommandPalette from '../components/CommandPalette.vue'
 import NotificationCenter from '../components/NotificationCenter.vue'
 import SmartCalendar from '../components/SmartCalendar.vue'
+import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
+import ShortcutHelp from '../components/ShortcutHelp.vue'
+
+useKeyboardShortcuts()
 
 const route = useRoute()
 const router = useRouter()
@@ -433,6 +437,7 @@ function closeMobileMenu() {
   <CommandPalette ref="commandPaletteRef" />
   <NotificationCenter ref="notificationCenterRef" />
   <SmartCalendar ref="smartCalendarRef" />
+  <ShortcutHelp />
 </template>
 
 <style scoped>

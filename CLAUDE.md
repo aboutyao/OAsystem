@@ -6,6 +6,18 @@
 - **数据库**: MySQL 8.0 + Redis 7 + Flyway 迁移
 - **部署**: Docker Compose (6 服务: mysql/redis/minio/backend/frontend/mailhog)
 
+## 核心原则：跨模块影响分析
+
+**修改任何代码前，必须思考三个层次的影响：**
+
+1. **直接调用方** — 谁调用了这个方法？
+2. **跨模块间接影响** — 这个模块被哪些其他模块依赖？修改是否影响它们？
+   - 例: 改 MessageService → 影响 WorkflowService/EmailService/SSE/NotificationCenter
+   - 例: 改 OaLeaveMapper → 影响 LeaveService/DashboardService/CalendarService/ReportService
+3. **前端级联** — 后端 API 变更是否影响前端的 API 调用、SSE 事件、UI 展示？
+
+**口诀**: 改一处，想三层。直接调用 → 跨模块依赖 → 前端引用。
+
 ## 代码规范
 
 ### Java 后端

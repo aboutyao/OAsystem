@@ -1,32 +1,63 @@
 ---
-description: 🔮 智能变更 — 先理解再修改，修改后验证
+description: 🔮 智能变更 — 跨模块影响分析 + 修改后验证
 allowed-tools: Bash, Read, Grep, Glob, Edit, Write
 ---
 
 # 🔮 Smart Change
 
-修改代码前先理解上下文，修改后验证正确性。
+修改代码前进行跨模块影响分析，修改后验证正确性。
 
-## Phase 1: 理解（修改前）
+## Phase 1: 跨模块影响分析（修改前）
 
 用户告诉你要修改的目标后，执行:
 
-1. 读取目标文件完整内容
-2. 找到所有调用方:
+### 1.1 直接影响（同模块）
 ```bash
 grep -rn "目标方法名" backend/src/main/java --include="*.java" | grep -v "import\|//\|test"
 grep -rn "目标方法名" frontend/src/ --include="*.ts" --include="*.vue"
 ```
-3. 找到依赖的 Mapper/Entity
-4. 读取相关测试文件（如果存在）
-5. 输出影响报告:
+
+### 1.2 跨模块间接影响（关键！）
+修改一个 Service 时，必须检查所有依赖它的模块:
+```bash
+# 例: 修改 MessageService，检查谁依赖了消息模块
+grep -rn "MessageService\|messageService\|msg_message" backend/src/main/java --include="*.java" | grep -v "import\|//\|test" | grep -v "MessageService.java"
+grep -rn "MessageService\|messageService" backend/src/main/java --include="*.java" | grep -oP 'import com\.company\.oa\.\w+' | sort -u
 ```
-📊 影响分析:
-  目标: ClassName.methodName()
-  调用方: [列表]
-  依赖: [列表]
+
+### 1.3 前端级联影响
+后端 API 变更时，检查前端所有引用点:
+```bash
+# API 路径变更
+grep -rn "旧API路径" frontend/src/ --include="*.ts" --include="*.vue"
+# 字段名变更
+grep -rn "旧字段名" frontend/src/ --include="*.ts" --include="*.vue"
+# SSE/WebSocket 事件
+grep -rn "事件名" frontend/src/composables/ --include="*.ts"
+```
+
+### 1.4 输出跨模块影响报告
+```
+📊 跨模块影响分析:
+  目标: Module.Service.method()
+
+  直接调用方:
+    ├── workflow.WorkflowService
+    └── contract.ContractService
+
+  跨模块间接影响:
+    ├── 通知模块: NotificationSseController (SSE推送)
+    ├── 邮件模块: EmailService (邮件通知)
+    ├── 审计模块: AuditService (操作记录)
+    └── 前端: NotificationCenter (分组展示)
+
+  数据流: Controller → Service → Mapper → DB
+  状态关联: [相关状态字段]
   测试覆盖: [有/无]
-  ⚠️ 风险点: [描述]
+
+  ⚠️ 风险点:
+    1. 修改返回字段可能影响 SSE 推送格式
+    2. 新增必填字段需要前端同步
 ```
 6. **等待用户确认后再执行修改**
 
@@ -47,6 +78,17 @@ cd /home/ubuntu/OAsystem/frontend && npx vue-tsc --noEmit 2>&1 | tail -10
 grep -rn "旧字段名" frontend/src/ --include="*.ts" --include="*.vue"
 ```
 
+### 跨模块一致性检查（关键！）
+修改后验证所有间接影响是否已处理:
+```bash
+# 检查 SSE 推送是否受影响
+grep -rn "发送消息\|send(" backend/src/main/java --include="*.java" | grep -v test | head -10
+# 检查审计日志是否需要更新
+grep -rn "@Auditable\|safeRecordOperation" backend/src/main/java --include="*.java" | head -10
+# 检查前端通知是否受影响
+grep -rn "notification\|ElNotification" frontend/src/ --include="*.ts" --include="*.vue" | head -10
+```
+
 ### 状态机检查
 如果修改了状态相关代码，确认所有状态分支都已处理。
 
@@ -55,5 +97,6 @@ grep -rn "旧字段名" frontend/src/ --include="*.ts" --include="*.vue"
 ✅ 编译检查: 通过/失败
 ✅ API契约: 一致/不一致
 ✅ 字段一致性: 一致/不一致
+✅ 跨模块一致性: 已处理/有遗漏
 ✅ 状态机: 完整/有遗漏
 ```
