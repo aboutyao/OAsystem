@@ -15,8 +15,9 @@ public class SequenceService {
 
     @Transactional
     public long nextId(String tableName) {
+        sequenceMapper.getCurrentValueForUpdate(tableName);
         sequenceMapper.increment(tableName);
-        Long id = sequenceMapper.getCurrentValue(tableName);
+        Long id = sequenceMapper.getCurrentValueForUpdate(tableName);
         return id == null ? 1L : id;
     }
 }

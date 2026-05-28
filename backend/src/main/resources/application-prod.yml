@@ -32,3 +32,19 @@ security:
   jwt:
     secret: ${JWT_SECRET:CHANGE_ME_PROD_JWT_SECRET_MUST_BE_SET_VIA_ENV_VAR}
     expires-in-seconds: ${JWT_EXPIRES_IN_SECONDS:7200}
+
+spring:
+  mail:
+    host: ${MAIL_HOST:smtp.example.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://your-domain.com}

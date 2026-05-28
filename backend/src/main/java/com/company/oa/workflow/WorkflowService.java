@@ -151,7 +151,7 @@ public class WorkflowService {
     // ─── Entity → Map helper ───────────────────────────────────────────────
     @SuppressWarnings("unchecked")
     private Map<String, Object> toMap(Object entity) {
-        return objectMapper.convertValue(entity, Map.class);
+        return com.company.oa.common.service.OaEntityMapper.toMap(entity);
     }
 
     // ─── Template CRUD ─────────────────────────────────────────────────────

@@ -65,12 +65,10 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-            @Value("${cors.allowed-origins:*}") List<String> allowedOrigins) {
+            @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000}") List<String> allowedOrigins) {
         CorsConfiguration config = new CorsConfiguration();
-        if (allowedOrigins.contains("*")) {
-            config.addAllowedOriginPattern("*");
-        } else {
-            config.setAllowedOrigins(allowedOrigins);
+        for (String origin : allowedOrigins) {
+            config.addAllowedOrigin(origin);
         }
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));

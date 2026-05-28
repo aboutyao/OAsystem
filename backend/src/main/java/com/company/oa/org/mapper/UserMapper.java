@@ -153,4 +153,14 @@ public interface UserMapper extends BaseMapper<User> {
 
     @Update("update org_user set totp_secret = null, totp_enabled = 0, updated_at = now() where id = #{userId}")
     int disableTotp(@Param("userId") long userId);
+
+    @Select("""
+            select u.id from org_user u
+            inner join perm_user_role ur on ur.user_id = u.id
+            inner join perm_role r on r.id = ur.role_id and r.role_code = #{roleCode} and r.status = 'ENABLED'
+            where u.deleted = 0 and u.account_status = 'ENABLED'
+            order by ur.created_at asc
+            limit 1
+            """)
+    Long selectUserIdByRoleCode(@Param("roleCode") String roleCode);
 }

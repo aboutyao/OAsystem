@@ -11,8 +11,8 @@ public interface SysSequenceMapper {
     @Update("UPDATE sys_sequence SET current_value = current_value + 1 WHERE seq_name = #{seqName}")
     int increment(@Param("seqName") String seqName);
 
-    @Select("SELECT current_value FROM sys_sequence WHERE seq_name = #{seqName}")
-    Long getCurrentValue(@Param("seqName") String seqName);
+    @Select("SELECT current_value FROM sys_sequence WHERE seq_name = #{seqName} FOR UPDATE")
+    Long getCurrentValueForUpdate(@Param("seqName") String seqName);
 
     @Select("SELECT COUNT(*) FROM sys_sequence WHERE seq_name = #{seqName} AND current_value >= #{maxId}")
     Long countReached(@Param("seqName") String seqName, @Param("maxId") long maxId);
