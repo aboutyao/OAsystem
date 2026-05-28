@@ -99,6 +99,17 @@ public Map<String, Object> create(...) { ... }
 - CORS 配置
 - 幂等性控制（X-Idempotency-Key）
 - 敏感字段脱敏
+- 操作审计（@Auditable AOP 自动记录）
+
+## 前端特性
+
+- 骨架屏加载效果
+- 路由切换进度条
+- 页面过渡动画（fade + translateY）
+- ECharts 数据可视化
+- 深色模式支持
+- 响应式布局（移动端适配）
+- 全局搜索（人员/请假/文件）
 
 ## 部署架构
 
