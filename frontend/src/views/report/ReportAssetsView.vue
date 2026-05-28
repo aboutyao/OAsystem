@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { assetSummary } from '../../api/reports'
 import type { JsonObject } from '../../api/types'
 import ReportChart from '../../components/ReportChart.vue'
+import { exportToCsv } from '../../utils/export'
 
 const loading = ref(false)
 const data = ref<JsonObject | null>(null)
@@ -20,6 +21,15 @@ async function load() {
 }
 
 void load()
+
+function exportReport() {
+  if (!data.value?.byCategory) return
+  exportToCsv(
+    data.value.byCategory as Record<string, unknown>[],
+    '资产统计报表',
+    [{ key: 'category', label: '类别' }, { key: 'count', label: '数量' }, { key: 'price', label: '采购总价' }]
+  )
+}
 
 const statusPieOption = computed(() => {
   if (!data.value) return {}
@@ -67,6 +77,7 @@ const categoryBarOption = computed(() => {
         <h2 class="oa-page__title">资产统计</h2>
       </div>
       <div class="oa-page__actions">
+        <el-button @click="exportReport" :disabled="!data">导出 CSV</el-button>
         <el-button @click="load">刷新</el-button>
       </div>
     </div>

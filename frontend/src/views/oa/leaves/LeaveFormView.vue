@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { calculateLeaveDuration, createLeave, getLeave, updateLeave } from '../../../api/oa-leaves'
+import { getMyLeaveBalance, type LeaveBalanceItem } from '../../../api/dashboard'
 import { computeLeaveSpan } from '../oa-shared'
 
 const route = useRoute()
@@ -11,6 +12,29 @@ const loading = ref(false)
 const saving = ref(false)
 const formRef = ref()
 const isDirty = ref(false)
+const balances = ref<LeaveBalanceItem[]>([])
+
+const LEAVE_TYPE_MAP: Record<string, string> = {
+  '年假': 'ANNUAL',
+  '病假': 'SICK',
+  '事假': 'PERSONAL',
+  '调休': 'PERSONAL',
+}
+
+const currentBalance = computed(() => {
+  const code = LEAVE_TYPE_MAP[form.leaveType] || form.leaveType
+  return balances.value.find(b => b.leaveType === code)
+})
+
+async function loadBalances() {
+  try {
+    balances.value = await getMyLeaveBalance()
+  } catch {
+    balances.value = []
+  }
+}
+
+onMounted(loadBalances)
 
 const formRules = {
   leaveType: [{ required: true, message: '请选择请假类型', trigger: 'change' }],
@@ -188,6 +212,21 @@ async function onSave() {
             <el-option label="调休" value="调休" />
           </el-select>
         </el-form-item>
+        <el-form-item v-if="currentBalance" label="剩余假期">
+          <div class="balance-display">
+            <span class="balance-number" :class="{ 'balance-low': currentBalance.remainingDays <= 1 }">
+              {{ currentBalance.remainingDays }}
+            </span>
+            <span class="balance-unit">天剩余</span>
+            <el-progress
+              :percentage="currentBalance.totalDays > 0 ? Math.round((currentBalance.usedDays / currentBalance.totalDays) * 100) : 0"
+              :stroke-width="4"
+              :color="currentBalance.remainingDays <= 1 ? '#F56C6C' : '#67C23A'"
+              style="flex: 1; margin-left: 12px"
+            />
+            <span class="balance-detail">已用 {{ currentBalance.usedDays }} / {{ currentBalance.totalDays }} 天</span>
+          </div>
+        </el-form-item>
         <el-form-item label="开始时间" prop="startAt">
           <el-date-picker
             v-model="form.startAt"
@@ -227,3 +266,34 @@ async function onSave() {
     </el-card>
   </div>
 </template>
+
+<style scoped>
+.balance-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.balance-number {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--oa-primary, #409eff);
+  line-height: 1;
+}
+
+.balance-low {
+  color: var(--oa-danger, #f56c6c);
+}
+
+.balance-unit {
+  font-size: 12px;
+  color: var(--oa-text-muted, #909399);
+}
+
+.balance-detail {
+  font-size: 12px;
+  color: var(--oa-text-muted, #909399);
+  white-space: nowrap;
+}
+</style>

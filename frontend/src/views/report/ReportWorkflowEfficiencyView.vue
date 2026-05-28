@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { workflowEfficiency } from '../../api/reports'
 import type { JsonObject } from '../../api/types'
 import ReportChart from '../../components/ReportChart.vue'
+import { exportToCsv } from '../../utils/export'
 
 const loading = ref(false)
 const data = ref<JsonObject | null>(null)
@@ -24,6 +25,15 @@ async function load() {
 }
 
 void load()
+
+function exportReport() {
+  if (!data.value?.byBusinessType) return
+  exportToCsv(
+    data.value.byBusinessType as Record<string, unknown>[],
+    `流程效率报表_${filter.from || 'all'}_${filter.to || 'all'}`,
+    [{ key: 'businessType', label: '业务类型' }, { key: 'count', label: '数量' }]
+  )
+}
 
 const statusPieOption = computed(() => {
   if (!data.value) return {}
@@ -70,6 +80,9 @@ const businessBarOption = computed(() => {
       <div>
         <h2 class="oa-page__title">流程效率</h2>
         <p class="muted">流程实例数量、状态分布、平均审批时长（小时）。</p>
+      </div>
+      <div class="oa-page__actions">
+        <el-button @click="exportReport" :disabled="!data">导出 CSV</el-button>
       </div>
     </div>
 
