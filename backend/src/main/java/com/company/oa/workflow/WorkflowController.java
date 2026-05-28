@@ -267,4 +267,25 @@ public class WorkflowController {
     public List<Map<String, Object>> getStarterHistory(@PathVariable long starterId) {
         return workflowService.getStarterHistory(starterId);
     }
+
+    // ─── Comment Reply / 评论回复 ──────────────────────────────────────
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:view')")
+    @PostMapping("/tasks/{id}/comment/{recordId}/reply")
+    public Map<String, Object> replyToComment(
+            @PathVariable("id") long wfInstanceId,
+            @PathVariable long recordId,
+            @RequestBody Map<String, String> body
+    ) {
+        return workflowService.replyToComment(wfInstanceId, recordId, body.get("comment"));
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:view')")
+    @GetMapping("/tasks/{id}/comment/{recordId}/replies")
+    public List<Map<String, Object>> getCommentReplies(
+            @PathVariable("id") long wfInstanceId,
+            @PathVariable long recordId
+    ) {
+        return workflowService.getCommentReplies(wfInstanceId, recordId);
+    }
 }

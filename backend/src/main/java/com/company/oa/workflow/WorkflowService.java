@@ -1384,4 +1384,54 @@ public class WorkflowService {
             return map;
         }).toList();
     }
+
+    // ─── Comment Reply / 评论回复 ──────────────────────────────────────
+
+    @Transactional
+    public Map<String, Object> replyToComment(long wfInstanceId, long recordId, String comment) {
+        AuthUser user = authService.currentUser();
+        if (comment == null || comment.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "回复内容不能为空");
+        }
+
+        // Verify the parent record exists in this workflow instance
+        Map<String, Object> parentRecord = taskRecordMapper.selectRecordById(wfInstanceId, recordId);
+        if (parentRecord == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "评论不存在");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        WfTaskRecord entity = new WfTaskRecord();
+        entity.setId(nextWfId("wf_task_record"));
+        entity.setWfInstanceId(wfInstanceId);
+        entity.setTaskId(parentRecord.get("taskId") != null ? ((Number) parentRecord.get("taskId")).longValue() : null);
+        entity.setAction("COMMENT_REPLY");
+        entity.setOperatorId(user.id());
+        entity.setOperatorNameSnapshot(user.realName());
+        entity.setNodeName(String.valueOf(parentRecord.getOrDefault("nodeName", "")));
+        entity.setComment(comment.trim());
+        entity.setParentRecordId(recordId);
+        entity.setOperatedAt(now);
+        taskRecordMapper.insert(entity);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", entity.getId());
+        result.put("parentRecordId", recordId);
+        result.put("comment", entity.getComment());
+        result.put("operatorId", user.id());
+        result.put("operatorName", user.realName());
+        result.put("operatedAt", now.toString());
+        auditService.safeRecordOperation(user.id(), "WF_COMMENT_REPLY", "WF_TASK_RECORD", recordId, AuditService.SUCCESS, null);
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getCommentReplies(long wfInstanceId, long recordId) {
+        // Verify the parent record exists in this workflow instance
+        Map<String, Object> parentRecord = taskRecordMapper.selectRecordById(wfInstanceId, recordId);
+        if (parentRecord == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "评论不存在");
+        }
+        return taskRecordMapper.selectRepliesByParentId(recordId);
+    }
 }

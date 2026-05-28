@@ -6,14 +6,16 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { listLeaves, submitLeave, withdrawLeave } from '../../../api/oa-leaves'
 import type { JsonObject } from '../../../api/types'
 import { usePaginatedList } from '../../../composables/usePaginatedList'
+import { useFilterPersistence } from '../../../composables/useFilterPersistence'
 import { formatRelativeTime, OA_STATUS_LABEL, statusLabel } from '../oa-shared'
 import type { TableInstance } from 'element-plus'
 
 const router = useRouter()
 const { loading, rows, total, page, size, load, handleSizeChange } = usePaginatedList<JsonObject>(listLeaves)
 
-const statusFilter = ref('')
-const keyword = ref('')
+const { filter } = useFilterPersistence('leave-list', { statusFilter: '', keyword: '' })
+const statusFilter = computed({ get: () => filter.value.statusFilter, set: (v) => { filter.value.statusFilter = v } })
+const keyword = computed({ get: () => filter.value.keyword, set: (v) => { filter.value.keyword = v } })
 
 const statusOptions = [
   { value: '', label: '全部' },

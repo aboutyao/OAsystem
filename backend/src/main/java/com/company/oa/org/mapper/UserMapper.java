@@ -163,4 +163,13 @@ public interface UserMapper extends BaseMapper<User> {
             limit 1
             """)
     Long selectUserIdByRoleCode(@Param("roleCode") String roleCode);
+
+    @Select("""
+            select u.id from org_user u
+            inner join perm_user_role ur on ur.user_id = u.id
+            inner join perm_role r on r.id = ur.role_id and r.role_code = #{roleCode} and r.status = 'ENABLED'
+            where u.deleted = 0 and u.account_status = 'ENABLED'
+            order by ur.created_at asc
+            """)
+    List<Long> selectAllUserIdsByRoleCode(@Param("roleCode") String roleCode);
 }

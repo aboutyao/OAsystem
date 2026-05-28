@@ -22,4 +22,29 @@ public interface WfTaskRecordMapper extends BaseMapper<WfTaskRecord> {
 
     @Select("select count(*) from wf_task_record where wf_instance_id = #{wfInstanceId} and action = #{action}")
     Long countByInstanceIdAndAction(@Param("wfInstanceId") long wfInstanceId, @Param("action") String action);
+
+    @Select("""
+            select id, wf_instance_id as wfInstanceId, task_id as taskId, action, operator_id as operatorId,
+                   operator_name_snapshot as operatorName, node_name as nodeName, comment,
+                   attachment_ids as attachmentIds, parent_record_id as parentRecordId, operated_at as operatedAt
+            from wf_task_record
+            where id = #{recordId} and wf_instance_id = #{wfInstanceId}
+            """)
+    Map<String, Object> selectRecordById(@Param("wfInstanceId") long wfInstanceId, @Param("recordId") long recordId);
+
+    @Select("""
+            select id, wf_instance_id as wfInstanceId, task_id as taskId, action, operator_id as operatorId,
+                   operator_name_snapshot as operatorName, node_name as nodeName, comment,
+                   attachment_ids as attachmentIds, parent_record_id as parentRecordId, operated_at as operatedAt
+            from wf_task_record
+            where parent_record_id = #{parentRecordId}
+            order by operated_at, id
+            """)
+    List<Map<String, Object>> selectRepliesByParentId(@Param("parentRecordId") long parentRecordId);
+
+    @Select("""
+            select count(*) from wf_task_record
+            where parent_record_id = #{parentRecordId}
+            """)
+    Long countRepliesByParentId(@Param("parentRecordId") long parentRecordId);
 }

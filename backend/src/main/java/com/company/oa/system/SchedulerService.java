@@ -205,21 +205,45 @@ public class SchedulerService {
             List<Map<String, Object>> anomalies = anomalyDetectionService.detectAnomalies();
             long anomalyCount = anomalies.size();
 
-            // Notify admins about detected anomalies
+            // Notify all SUPER_ADMIN users with a summary message
             if (!anomalies.isEmpty()) {
+                List<Long> adminIds = userMapper.selectAllUserIdsByRoleCode("SUPER_ADMIN");
+
+                // Count anomalies by type for the summary
+                Map<String, Long> typeCount = new java.util.LinkedHashMap<>();
+                Map<String, Long> severityCount = new java.util.LinkedHashMap<>();
+                for (Map<String, Object> anomaly : anomalies) {
+                    String type = String.valueOf(anomaly.getOrDefault("type", "UNKNOWN"));
+                    String severity = String.valueOf(anomaly.getOrDefault("severity", "MEDIUM"));
+                    typeCount.merge(type, 1L, Long::sum);
+                    severityCount.merge(severity, 1L, Long::sum);
+                }
+
+                // Build summary message
+                StringBuilder summary = new StringBuilder();
+                summary.append("系统检测到 ").append(anomalyCount).append(" 条异常行为:\n");
+                typeCount.forEach((type, count) ->
+                        summary.append("  - ").append(type).append(": ").append(count).append(" 条\n"));
+                summary.append("严重程度分布: ");
+                severityCount.forEach((severity, count) ->
+                        summary.append(severity).append(" ").append(count).append("条; "));
+
+                // Also include detailed per-anomaly messages for full context
                 for (Map<String, Object> anomaly : anomalies) {
                     String severity = String.valueOf(anomaly.getOrDefault("severity", "MEDIUM"));
                     String message = String.valueOf(anomaly.getOrDefault("message", "检测到异常行为"));
                     String type = String.valueOf(anomaly.getOrDefault("type", "UNKNOWN"));
-
-                    // Find and notify a system admin
-                    Long adminId = userMapper.selectUserIdByRoleCode("SUPER_ADMIN");
-                    if (adminId != null) {
-                        messageService.send(adminId, "REMIND",
-                                "【" + severity + "】" + type + " 异常检测", message,
-                                "ANOMALY", null, null);
-                    }
+                    summary.append("\n[").append(severity).append("] ").append(type).append(": ").append(message);
                 }
+
+                String title = "【异常检测报告】检测到 " + anomalyCount + " 条异常行为";
+                String content = summary.toString();
+
+                for (Long adminId : adminIds) {
+                    messageService.send(adminId, "REMIND", title, content,
+                            "ANOMALY", null, null);
+                }
+                log.info("Anomaly alert sent to {} admin(s)", adminIds.size());
             }
 
             endJob(jobLog, "SUCCESS", anomalyCount, 0L, null);

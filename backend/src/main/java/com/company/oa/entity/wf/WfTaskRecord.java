@@ -30,5 +30,7 @@ public class WfTaskRecord {
 
     private String attachmentIds;
 
+    private Long parentRecordId;
+
     private LocalDateTime operatedAt;
 }

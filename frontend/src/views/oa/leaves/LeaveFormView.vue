@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { calculateLeaveDuration, createLeave, getLeave, updateLeave } from '../../../api/oa-leaves'
 import { getMyLeaveBalance, type LeaveBalanceItem } from '../../../api/dashboard'
 import { computeLeaveSpan } from '../oa-shared'
+import { useAutoSave } from '../../composables/useAutoSave'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,6 +26,9 @@ const currentBalance = computed(() => {
   const code = LEAVE_TYPE_MAP[form.leaveType] || form.leaveType
   return balances.value.find(b => b.leaveType === code)
 })
+
+// Auto-save draft
+const { lastSaved, clear: clearDraft } = useAutoSave(form, 'leave-draft', { interval: 30000 })
 
 async function loadBalances() {
   try {
@@ -182,6 +186,7 @@ async function onSave() {
     } else {
       const created = await createLeave(body)
       ElMessage.success('已创建')
+      clearDraft()
       router.push(`/oa/leaves/${Number(created.id)}`)
     }
   } catch (e) {
@@ -197,7 +202,7 @@ async function onSave() {
     <div class="oa-page__head">
       <div>
         <h2 class="oa-page__title">{{ isEdit ? '编辑请假' : '新建请假' }}</h2>
-        <p class="muted">提交前可先保存为草稿。</p>
+        <p class="muted">提交前可先保存为草稿。<span v-if="lastSaved" class="auto-save-hint">自动保存于 {{ lastSaved }}</span></p>
       </div>
       <el-button @click="router.push(isEdit ? `/oa/leaves/${id}` : '/oa/leaves')">取消</el-button>
     </div>
@@ -295,5 +300,11 @@ async function onSave() {
   font-size: 12px;
   color: var(--oa-text-muted, #909399);
   white-space: nowrap;
+}
+
+.auto-save-hint {
+  font-size: 12px;
+  color: var(--oa-text-muted, #909399);
+  margin-left: 8px;
 }
 </style>
