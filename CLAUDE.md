@@ -6,6 +6,15 @@
 - **数据库**: MySQL 8.0 + Redis 7 + Flyway 迁移
 - **部署**: Docker Compose (6 服务: mysql/redis/minio/backend/frontend/mailhog)
 
+## 开发习惯：先查后做，用旧不造新
+
+每次收到任务，第一步必须扫描项目：
+1. `ls`/`find`/`grep` 看项目目录已有什么
+2. 优先用已有脚本（deploy.sh、npm scripts、mvn 命令）
+3. 优先扩展现有组件，不重复造轮子
+4. 读 CLAUDE.md 确认已知陷阱
+5. **口诀: 先查后做，用旧不造新**
+
 ## 产品设计哲学：预测性 + 主动性 + 个性化
 
 **功能设计的核心判断标准：**
