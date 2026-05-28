@@ -110,4 +110,20 @@ public interface WfTaskMapper extends BaseMapper<WfTask> {
             limit #{limit}
             """)
     List<Map<String, Object>> selectDashboardTodos(@Param("assigneeId") long assigneeId, @Param("limit") int limit);
+
+    @Select("""
+            select AVG(TIMESTAMPDIFF(HOUR, wt.created_at, wt.completed_at)) as avgHours
+            from wf_task wt
+            where wt.assignee_id = #{userId} and wt.status in ('COMPLETED','CANCELLED')
+              and wt.completed_at is not null
+            """)
+    Map<String, Object> selectApprovalTimeStats(@Param("userId") long userId);
+
+    @Select("""
+            select AVG(TIMESTAMPDIFF(HOUR, wt.created_at, wt.completed_at)) as avgHours
+            from wf_task wt
+            where wt.assignee_id <> #{userId} and wt.status in ('COMPLETED','CANCELLED')
+              and wt.completed_at is not null
+            """)
+    Map<String, Object> selectTeamApprovalTimeStats(@Param("userId") long userId);
 }

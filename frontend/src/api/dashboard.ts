@@ -91,3 +91,32 @@ export interface LeaveBalanceItem {
 export function getMyLeaveBalance() {
   return http.get<unknown, LeaveBalanceItem[]>('/leave-balance/my')
 }
+
+export interface DashboardInsight {
+  briefing: string
+  approvalVelocity: {
+    avgHours: number
+    teamAvgHours: number
+    fasterThanTeam: boolean
+    speedRatio: number
+  }
+  upcomingDeadlines: Array<{
+    type: string
+    title: string
+    deadline: string
+    urgency: string
+  }>
+  topActions: Array<{
+    path: string
+    label: string
+    count: number
+  }>
+}
+
+export function getDashboardInsights() {
+  return http.get<unknown, DashboardInsight>('/dashboard/insights')
+}
+
+export function trackQuickAction(path: string) {
+  return http.get<unknown, void>('/dashboard/track-action', { params: { path } })
+}

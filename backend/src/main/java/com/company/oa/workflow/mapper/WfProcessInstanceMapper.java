@@ -89,4 +89,24 @@ public interface WfProcessInstanceMapper extends BaseMapper<WfProcessInstance> {
                    or (inst.status in ('APPROVED','REJECTED','WITHDRAWN','TERMINATED') and inst.ended_at is null))
             """)
     Long countExceptionByStarter(@Param("starterId") long starterId);
+
+    @Select("""
+            select inst.id as wfInstanceId, inst.title, inst.sla_deadline as slaDeadline
+            from wf_process_instance inst
+            where inst.status = 'APPROVING' and inst.sla_breached = 0
+              and inst.sla_deadline is not null
+              and inst.sla_deadline between #{now} and #{deadline}
+            order by inst.sla_deadline asc
+            """)
+    List<Map<String, Object>> selectSlaBreachesAtRisk(@Param("starterId") long starterId,
+                                                       @Param("now") LocalDateTime now,
+                                                       @Param("deadline") LocalDateTime deadline);
+
+    @Select("""
+            select inst.id as wfInstanceId, inst.title, inst.sla_deadline as slaDeadline
+            from wf_process_instance inst
+            where inst.status = 'APPROVING' and inst.sla_breached = 1
+            order by inst.sla_deadline asc
+            """)
+    List<Map<String, Object>> selectSlaBreachedInstances(@Param("starterId") long starterId);
 }

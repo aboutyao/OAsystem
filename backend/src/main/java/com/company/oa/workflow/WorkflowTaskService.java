@@ -156,7 +156,7 @@ public class WorkflowTaskService {
 
         if (processEnded) {
             instanceMapper.updateStatus(wfInstanceId, "APPROVED", null, now);
-            WorkflowDocumentSyncer.sync(wfInstanceId, "APPROVED", instanceMapper);
+            // Document sync handled by WorkflowService facade
             Map<String, Object> inst = loadInstance(wfInstanceId);
             long starterId = ((Number) inst.get("starterId")).longValue();
             String title = String.valueOf(inst.get("title"));
@@ -205,7 +205,7 @@ public class WorkflowTaskService {
         LocalDateTime now = LocalDateTime.now();
         wfTaskMapper.updateStatusByInstanceAndOldStatus(wfInstanceId, CANCELLED, now, PENDING);
         instanceMapper.updateStatus(wfInstanceId, "REJECTED", null, now);
-        WorkflowDocumentSyncer.sync(wfInstanceId, "REJECTED", instanceMapper);
+        // Document sync handled by WorkflowService facade
         insertTaskRecord(wfInstanceId, wfTaskId, "REJECT", user.id(), user.realName(),
                 String.valueOf(row.get("nodeName")), comment, null, now);
 
