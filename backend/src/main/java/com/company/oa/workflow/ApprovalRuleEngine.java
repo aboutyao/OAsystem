@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -144,5 +143,165 @@ public class ApprovalRuleEngine {
             chain.add(starter.getManagerUserId());
         }
         return chain;
+    }
+
+    /**
+     * Smart approval routing based on historical response time and current workload.
+     * Finds all users with the required role, scores them by responsiveness and capacity,
+     * and returns the chain sorted by score (best approver first).
+     *
+     * Score formula: score = 1 / (avgResponseHours * workloadFactor)
+     * where workloadFactor = 1 + (pendingTasks / 10) to penalize overloaded approvers
+     *
+     * @param businessType the business type to determine which role is needed
+     * @param conditionValue the condition value (e.g., amount, days)
+     * @param starterId the user initiating the approval
+     * @return list of approver user IDs sorted by score (best first)
+     */
+    public List<Long> resolveSmartChain(String businessType, BigDecimal conditionValue, long starterId) {
+        // First, resolve the role requirement from the static rule
+        String requiredRole = resolveRequiredRoleFromRule(businessType, conditionValue);
+
+        // Find all users with the required role
+        List<Long> candidateIds = userMapper.selectAllUserIdsByRoleCode(requiredRole);
+        if (candidateIds == null || candidateIds.isEmpty()) {
+            log.warn("Smart routing: no candidates found for role '{}', falling back to static chain",
+                    requiredRole);
+            return resolveApprovalChain(businessType, conditionValue, starterId);
+        }
+
+        // Remove starter from candidates
+        candidateIds.removeIf(id -> id == starterId);
+
+        if (candidateIds.isEmpty()) {
+            log.warn("Smart routing: only candidate is the starter, falling back to static chain");
+            return resolveApprovalChain(businessType, conditionValue, starterId);
+        }
+
+        // Score each candidate based on response time and workload
+        List<ApproverCandidate> candidates = new ArrayList<>();
+
+        for (Long userId : candidateIds) {
+            // Get average response time from wf_task_record
+            Map<String, Object> stats = wfTaskRecordMapper.selectApprovalStats(userId);
+            double avgResponseHours = 24.0; // default: 24 hours if no history
+            long totalApprovals = 0;
+
+            if (stats != null && stats.get("avgResponseHours") != null) {
+                avgResponseHours = ((Number) stats.get("avgResponseHours")).doubleValue();
+                avgResponseHours = Math.max(avgResponseHours, 0.1); // floor at 6 minutes
+            }
+            if (stats != null && stats.get("totalApprovals") != null) {
+                totalApprovals = ((Number) stats.get("totalApprovals")).longValue();
+            }
+
+            // Get current pending task count (workload)
+            Long pendingCount = wfTaskMapper.countTodoTasks(userId, "PENDING");
+            long currentWorkload = pendingCount != null ? pendingCount : 0L;
+
+            // Calculate workload factor: penalize overloaded approvers
+            // Formula: 1 + (pendingTasks / 10)
+            // e.g., 0 pending = 1.0x, 5 pending = 1.5x, 10 pending = 2.0x
+            double workloadFactor = 1.0 + (currentWorkload / 10.0);
+
+            // Calculate score: higher is better
+            // score = 1 / (avgResponseHours * workloadFactor)
+            double score = 1.0 / (avgResponseHours * workloadFactor);
+
+            // If user has no approval history, apply a penalty (prefer experienced approvers)
+            if (totalApprovals == 0) {
+                score *= 0.5;
+            }
+
+            // Get user name for logging
+            Map<String, Object> userSnapshot = userMapper.selectUserSnapshot(userId);
+            String userName = userSnapshot != null
+                    ? (String) userSnapshot.getOrDefault("realName", "Unknown")
+                    : "Unknown";
+
+            candidates.add(new ApproverCandidate(userId, userName, avgResponseHours,
+                    currentWorkload, totalApprovals, score));
+        }
+
+        // Sort by score descending (best first)
+        candidates.sort(Comparator.comparingDouble(ApproverCandidate::score).reversed());
+
+        // Log the ranking for debugging
+        if (log.isDebugEnabled()) {
+            log.debug("Smart routing for role '{}':", requiredRole);
+            for (int i = 0; i < candidates.size(); i++) {
+                ApproverCandidate c = candidates.get(i);
+                log.debug("  #{}: {} (id={}) — score={}, avgResponse={}h, workload={}, totalApprovals={}",
+                        i + 1, c.name, c.userId,
+                        String.format("%.4f", c.score),
+                        String.format("%.1f", c.avgResponseHours),
+                        c.currentWorkload,
+                        c.totalApprovals);
+            }
+        }
+
+        return candidates.stream()
+                .map(c -> c.userId)
+                .toList();
+    }
+
+    /**
+     * Determine which role code is required for a given business type and condition.
+     * Parses the matched rule's approval chain to extract the first role node.
+     */
+    private String resolveRequiredRoleFromRule(String businessType, BigDecimal conditionValue) {
+        List<WfApprovalRule> rules = ruleMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<WfApprovalRule>()
+                        .eq(WfApprovalRule::getBusinessType, businessType)
+                        .eq(WfApprovalRule::getStatus, "ENABLED")
+                        .orderByDesc(WfApprovalRule::getPriority)
+        );
+
+        for (WfApprovalRule rule : rules) {
+            if (matchCondition(rule, conditionValue)) {
+                try {
+                    List<String> nodeTypes = objectMapper.readValue(
+                            rule.getApprovalChain(), new TypeReference<>() {});
+                    // Return the first role-based node (skip DIRECT_SUPERVISOR as it's person-specific)
+                    for (String node : nodeTypes) {
+                        if (!"DIRECT_SUPERVISOR".equals(node) && !"DEPARTMENT_HEAD".equals(node)) {
+                            return node;
+                        }
+                    }
+                    // If chain only has supervisor/head, fall back to HR
+                    return "HR";
+                } catch (Exception e) {
+                    log.error("Failed to parse approval chain for smart routing", e);
+                    return "HR";
+                }
+            }
+        }
+
+        // Default to HR if no rule matched
+        return "HR";
+    }
+
+    /**
+     * Internal representation of a scored approver candidate.
+     */
+    private static class ApproverCandidate {
+        final long userId;
+        final String name;
+        final double avgResponseHours;
+        final long currentWorkload;
+        final long totalApprovals;
+        final double score;
+
+        ApproverCandidate(long userId, String name, double avgResponseHours,
+                          long currentWorkload, long totalApprovals, double score) {
+            this.userId = userId;
+            this.name = name;
+            this.avgResponseHours = avgResponseHours;
+            this.currentWorkload = currentWorkload;
+            this.totalApprovals = totalApprovals;
+            this.score = score;
+        }
+
+        public double score() { return score; }
     }
 }
