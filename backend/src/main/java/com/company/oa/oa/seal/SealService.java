@@ -17,9 +17,13 @@ import com.company.oa.workflow.WorkflowDtos;
 import com.company.oa.workflow.WorkflowService;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.common.service.OaPermissionUtils;
+import com.alibaba.excel.EasyExcel;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -214,6 +218,58 @@ public class SealService {
                 .eq(OaSealApply::getId, id)
                 .eq(OaSealApply::getDeleted, 0));
         return detail(id);
+    }
+
+    @Transactional(readOnly = true)
+    public void exportSeals(Map<String, Object> filter, HttpServletResponse response) {
+        AuthUser user = authService.currentUser();
+        LambdaQueryWrapper<OaSealApply> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(OaSealApply::getDeleted, 0);
+        if (user.permissions().contains("*") && filter != null && filter.containsKey("applicantId")) {
+            wrapper.eq(OaSealApply::getCreatedBy, ((Number) filter.get("applicantId")).longValue());
+        } else {
+            wrapper.eq(OaSealApply::getCreatedBy, user.id());
+        }
+        if (filter != null && filter.containsKey("status")) {
+            wrapper.eq(OaSealApply::getStatus, String.valueOf(filter.get("status")));
+        }
+        wrapper.orderByDesc(OaSealApply::getId);
+        List<OaSealApply> entities = oaSealApplyMapper.selectList(wrapper);
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (OaSealApply e : entities) {
+            rows.add(entityToMap(e));
+        }
+
+        try {
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding("utf-8");
+            String fileName = URLEncoder.encode("用章申请列表", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            response.setHeader("Content-Disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+            EasyExcel.write(response.getOutputStream())
+                    .head(List.of(
+                            List.of("编号", "印章类型", "印章名称", "文件标题", "用章事由",
+                                    "用章时间", "是否外带", "归还时间", "状态",
+                                    "申请人", "部门", "创建时间")
+                    ))
+                    .sheet("用章申请列表")
+                    .doWrite(rows.stream().map(r -> List.of(
+                            String.valueOf(r.get("id")),
+                            String.valueOf(r.get("sealType")),
+                            String.valueOf(r.get("sealName")),
+                            String.valueOf(r.get("fileTitle")),
+                            String.valueOf(r.get("useReason")),
+                            String.valueOf(r.get("useAt")),
+                            "1".equals(String.valueOf(r.get("outFlag"))) ? "是" : "否",
+                            String.valueOf(r.get("returnAt")),
+                            String.valueOf(r.get("status")),
+                            String.valueOf(r.get("createdName")),
+                            String.valueOf(r.get("createdDeptName")),
+                            String.valueOf(r.get("createdAt"))
+                    )).toList());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "导出失败: " + e.getMessage());
+        }
     }
 
     private Map<String, Object> loadSeal(long id) {

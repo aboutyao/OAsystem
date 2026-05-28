@@ -3,6 +3,7 @@ package com.company.oa.contract;
 import com.company.oa.audit.AuditService;
 import com.company.oa.auth.AuthService;
 import com.company.oa.auth.AuthUser;
+import com.company.oa.message.MessageService;
 import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.service.OaSnapshotUtils;
 import com.company.oa.common.service.OaUtils;
@@ -47,6 +48,7 @@ public class ContractService {
     private final AuditService auditService;
     private final SequenceService sequenceService;
     private final ObjectMapper objectMapper;
+    private final MessageService messageService;
 
     public ContractService(
             ContractInfoMapper contractMapper,
@@ -56,7 +58,8 @@ public class ContractService {
             WorkflowService workflowService,
             AuditService auditService,
             SequenceService sequenceService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            MessageService messageService
     ) {
         this.contractMapper = contractMapper;
         this.paginationHelper = paginationHelper;
@@ -66,6 +69,7 @@ public class ContractService {
         this.auditService = auditService;
         this.sequenceService = sequenceService;
         this.objectMapper = objectMapper;
+        this.messageService = messageService;
     }
 
     @Transactional(readOnly = true)
@@ -309,6 +313,69 @@ public class ContractService {
         Map<String, Object> row = loadContract(id);
         OaPermissionUtils.assertViewAllowed(row, authService, "此记录");
         return List.of();
+    }
+
+    /**
+     * Returns active/signed contracts whose end date falls within the next N days.
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getExpiringContracts(int days) {
+        LocalDate today = LocalDate.now();
+        LocalDate threshold = today.plusDays(days);
+        List<ContractInfo> contracts = contractMapper.selectList(
+                new LambdaQueryWrapper<ContractInfo>()
+                        .eq(ContractInfo::getDeleted, 0)
+                        .in(ContractInfo::getStatus, SIGNED, APPROVED)
+                        .ge(ContractInfo::getEndDate, today)
+                        .le(ContractInfo::getEndDate, threshold)
+                        .orderByAsc(ContractInfo::getEndDate)
+        );
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (ContractInfo c : contracts) {
+            Map<String, Object> map = toMap(c);
+            long daysRemaining = java.time.temporal.ChronoUnit.DAYS.between(today, c.getEndDate());
+            map.put("daysRemaining", daysRemaining);
+            map.remove("deleted");
+            result.add(new LinkedHashMap<>(map));
+        }
+        return result;
+    }
+
+    /**
+     * Sends expiry notification messages to contract owners for contracts
+     * expiring within 30, 7, and 3 days.
+     */
+    @Transactional
+    public long sendExpiryNotifications() {
+        LocalDate today = LocalDate.now();
+        long totalNotified = 0;
+
+        for (int days : new int[]{30, 7, 3}) {
+            LocalDate threshold = today.plusDays(days);
+            List<ContractInfo> contracts = contractMapper.selectList(
+                    new LambdaQueryWrapper<ContractInfo>()
+                            .eq(ContractInfo::getDeleted, 0)
+                            .in(ContractInfo::getStatus, SIGNED, APPROVED)
+                            .ge(ContractInfo::getEndDate, today)
+                            .le(ContractInfo::getEndDate, threshold)
+            );
+
+            for (ContractInfo contract : contracts) {
+                long daysRemaining = java.time.temporal.ChronoUnit.DAYS.between(today, contract.getEndDate());
+                String urgency = days <= 3 ? "紧急" : days <= 7 ? "重要" : "提醒";
+                String message = String.format("【%s】合同「%s」(编号: %s) 将在%d天后到期(%s)，请及时处理续签。",
+                        urgency, contract.getContractName(), contract.getContractNo(),
+                        daysRemaining, contract.getEndDate());
+
+                if (contract.getCreatedBy() != null) {
+                    messageService.send(contract.getCreatedBy(), "REMIND",
+                            "合同到期" + urgency, message,
+                            "CONTRACT", contract.getId(), null);
+                    totalNotified++;
+                }
+            }
+        }
+        return totalNotified;
     }
 
     private Map<String, Object> loadContract(long id) {

@@ -102,4 +102,19 @@ public class ContractController {
                 "filter", filter == null ? Map.of() : filter
         );
     }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:view')")
+    @GetMapping("/expiring")
+    public List<Map<String, Object>> expiring(
+            @RequestParam(defaultValue = "30") int days
+    ) {
+        return contractService.getExpiringContracts(days);
+    }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:create')")
+    @PostMapping("/send-expiry-notifications")
+    public Map<String, Object> sendExpiryNotifications() {
+        long count = contractService.sendExpiryNotifications();
+        return Map.of("notified", count);
+    }
 }

@@ -1,6 +1,7 @@
 package com.company.oa.oa.seal;
 
 import com.company.oa.common.api.PageResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -77,7 +78,7 @@ public class SealController {
 
     @PreAuthorize("hasAnyAuthority('*', 'org:view')")
     @PostMapping("/export")
-    public Map<String, Object> export(@RequestBody(required = false) Map<String, Object> filter) {
-        return Map.of("message", "导出任务尚未接入", "filter", filter == null ? Map.of() : filter);
+    public void export(@RequestBody(required = false) Map<String, Object> filter, HttpServletResponse response) {
+        sealService.exportSeals(filter, response);
     }
 }
