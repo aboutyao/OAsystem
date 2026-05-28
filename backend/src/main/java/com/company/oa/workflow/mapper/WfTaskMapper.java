@@ -16,11 +16,13 @@ public interface WfTaskMapper extends BaseMapper<WfTask> {
 
     @Select("""
             select wt.id, wt.id as taskId, inst.title, wt.node_name as nodeName, wt.status, wt.wf_instance_id as wfInstanceId,
-                   inst.process_instance_id as processInstanceId, wt.created_at as createdAt
+                   inst.process_instance_id as processInstanceId, wt.created_at as createdAt,
+                   inst.business_type as businessType, inst.starter_name_snapshot as starterName,
+                   TIMESTAMPDIFF(HOUR, wt.created_at, NOW()) as waitHours
             from wf_task wt
             join wf_process_instance inst on inst.id = wt.wf_instance_id
             where wt.assignee_id = #{assigneeId} and wt.status = #{status}
-            order by wt.id desc
+            order by TIMESTAMPDIFF(HOUR, wt.created_at, NOW()) desc, wt.id desc
             limit #{limit} offset #{offset}
             """)
     List<Map<String, Object>> selectTodoTasks(@Param("assigneeId") long assigneeId,

@@ -261,4 +261,10 @@ public class WorkflowController {
     public Map<String, Object> batchApprove(@RequestBody WorkflowDtos.BatchApproveRequest request) {
         return workflowService.batchApprove(request);
     }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/instances/starter/{starterId}/history")
+    public List<Map<String, Object>> getStarterHistory(@PathVariable long starterId) {
+        return workflowService.getStarterHistory(starterId);
+    }
 }

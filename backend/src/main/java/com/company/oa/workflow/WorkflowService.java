@@ -7,6 +7,8 @@ import com.company.oa.common.api.PageResponse;
 import com.company.oa.common.error.BusinessException;
 import com.company.oa.common.error.ErrorCode;
 import com.company.oa.common.service.PaginationHelper;
+
+import java.math.BigDecimal;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.contract.mapper.ContractInfoMapper;
 import com.company.oa.entity.wf.*;
@@ -83,6 +85,7 @@ public class WorkflowService {
     private final OaPurchaseMapper purchaseMapper;
     private final ContractInfoMapper contractMapper;
     private final CommentTemplateMapper commentTemplateMapper;
+    private final ApprovalRuleEngine approvalRuleEngine;
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule());
 
@@ -111,7 +114,8 @@ public class WorkflowService {
             OaSealApplyMapper sealApplyMapper,
             OaPurchaseMapper purchaseMapper,
             ContractInfoMapper contractMapper,
-            CommentTemplateMapper commentTemplateMapper
+            CommentTemplateMapper commentTemplateMapper,
+            ApprovalRuleEngine approvalRuleEngine
     ) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
@@ -138,6 +142,7 @@ public class WorkflowService {
         this.purchaseMapper = purchaseMapper;
         this.contractMapper = contractMapper;
         this.commentTemplateMapper = commentTemplateMapper;
+        this.approvalRuleEngine = approvalRuleEngine;
     }
 
     private record PublishedVersion(long templateId, long versionId, String processDefinitionKey) {
@@ -328,7 +333,11 @@ public class WorkflowService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "流程定义未部署，请检查 BPMN 是否已发布到 Flowable");
         }
 
-        Long managerId = resolveManagerId(starter.id(), req.variables());
+        // 使用动态审批路由引擎计算审批链
+        BigDecimal conditionValue = extractConditionValue(req);
+        List<Long> approvalChain = approvalRuleEngine.resolveApprovalChain(
+                req.businessType(), conditionValue, starter.id());
+
         Map<String, Object> flowVars = new HashMap<>();
         if (req.variables() != null) {
             for (Map.Entry<String, Object> e : req.variables().entrySet()) {
@@ -337,7 +346,20 @@ public class WorkflowService {
                 }
             }
         }
-        flowVars.put("managerId", String.valueOf(managerId));
+
+        // 设置动态审批链到流程变量
+        if (!approvalChain.isEmpty()) {
+            flowVars.put("managerId", String.valueOf(approvalChain.get(0)));
+            if (approvalChain.size() > 1) {
+                flowVars.put("deptHeadId", String.valueOf(approvalChain.get(0)));
+            }
+            if (approvalChain.size() > 2) {
+                flowVars.put("vpId", String.valueOf(approvalChain.get(1)));
+            }
+        } else {
+            Long managerId = resolveManagerId(starter.id(), req.variables());
+            flowVars.put("managerId", String.valueOf(managerId));
+        }
         flowVars.put("starterId", starter.id());
 
         // Resolve role-based assignee IDs for BPMN templates that use them
@@ -1153,6 +1175,15 @@ public class WorkflowService {
         }
     }
 
+    private BigDecimal extractConditionValue(WorkflowDtos.StartInstanceRequest req) {
+        if (req.variables() == null) return null;
+        Object amount = req.variables().get("totalAmount");
+        if (amount instanceof Number n) return BigDecimal.valueOf(n.doubleValue());
+        Object days = req.variables().get("durationDays");
+        if (days instanceof Number n) return BigDecimal.valueOf(n.doubleValue());
+        return null;
+    }
+
     private Long resolveManagerId(long starterId, Map<String, Object> variables) {
         if (variables != null && variables.get("managerId") != null) {
             Object v = variables.get("managerId");
@@ -1330,5 +1361,27 @@ public class WorkflowService {
         result.put("failed", failed);
         result.put("total", request.taskIds().size());
         return result;
+    }
+
+    // ─── Starter History / 申请人历史 ───────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getStarterHistory(long starterId) {
+        List<WfProcessInstance> instances = instanceMapper.selectList(
+                new LambdaQueryWrapper<WfProcessInstance>()
+                        .eq(WfProcessInstance::getStarterId, starterId)
+                        .orderByDesc(WfProcessInstance::getId)
+                        .last("limit 20")
+        );
+        return instances.stream().map(inst -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", inst.getId());
+            map.put("title", inst.getTitle());
+            map.put("businessType", inst.getBusinessType());
+            map.put("status", inst.getStatus());
+            map.put("startedAt", inst.getStartedAt() != null ? inst.getStartedAt().toString() : null);
+            map.put("endedAt", inst.getEndedAt() != null ? inst.getEndedAt().toString() : null);
+            return map;
+        }).toList();
     }
 }
