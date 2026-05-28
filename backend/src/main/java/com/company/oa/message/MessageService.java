@@ -16,7 +16,9 @@ import com.company.oa.message.mapper.MsgMessageMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalTime;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -244,8 +246,52 @@ public class MessageService {
         entity.setReadAt(null);
         messageMapper.insert(entity);
 
+        // Check DND settings — skip push notifications during quiet hours
+        if (isDndActive(receiverId)) {
+            return;
+        }
+
         // Push real-time notification via SSE
         notificationSseController.notifyUser(receiverId, messageType, title, content);
+    }
+
+    /**
+     * Checks whether the given user has DND (Do Not Disturb) enabled and
+     * the current time falls within the configured quiet-time window.
+     * Handles cross-midnight ranges (e.g. 22:00 – 07:00).
+     */
+    private boolean isDndActive(long userId) {
+        var settings = settingsMapper.selectOne(
+                new LambdaQueryWrapper<com.company.oa.entity.message.UserNotificationSettings>()
+                        .eq(com.company.oa.entity.message.UserNotificationSettings::getUserId, userId)
+        );
+        if (settings == null || !Boolean.TRUE.equals(settings.getEnableDnd())) {
+            return false;
+        }
+
+        String startStr = settings.getDndStart();
+        String endStr = settings.getDndEnd();
+        if (startStr == null || endStr == null || startStr.isBlank() || endStr.isBlank()) {
+            return false;
+        }
+
+        try {
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("HH:mm");
+            LocalTime start = LocalTime.parse(startStr.trim(), fmt);
+            LocalTime end = LocalTime.parse(endStr.trim(), fmt);
+            LocalTime now = LocalTime.now();
+
+            if (start.isBefore(end) || start.equals(end)) {
+                // Normal range: e.g. 09:00 – 18:00
+                return !now.isBefore(start) && !now.isAfter(end);
+            } else {
+                // Cross-midnight range: e.g. 22:00 – 07:00
+                return !now.isBefore(start) || !now.isAfter(end);
+            }
+        } catch (Exception e) {
+            // Malformed time strings — treat DND as inactive
+            return false;
+        }
     }
 
     private void loadOwned(long id, long receiverId) {

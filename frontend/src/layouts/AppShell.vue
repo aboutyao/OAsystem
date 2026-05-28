@@ -10,6 +10,7 @@ import NotificationCenter from '../components/NotificationCenter.vue'
 import SmartCalendar from '../components/SmartCalendar.vue'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import ShortcutHelp from '../components/ShortcutHelp.vue'
+import OnboardingOverlay from '../components/OnboardingOverlay.vue'
 
 useKeyboardShortcuts()
 
@@ -438,6 +439,7 @@ function closeMobileMenu() {
   <NotificationCenter ref="notificationCenterRef" />
   <SmartCalendar ref="smartCalendarRef" />
   <ShortcutHelp />
+  <OnboardingOverlay />
 </template>
 
 <style scoped>

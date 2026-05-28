@@ -208,6 +208,33 @@ public class AuditService {
     }
 
     @Transactional(readOnly = true)
+    public PageResponse<Map<String, Object>> listTrailByEntity(
+            long page, long size, String entityType, Long entityId
+    ) {
+        long[] ps = paginationHelper.clamp(page, size);
+
+        LambdaQueryWrapper<AuditOperationLog> wrapper = new LambdaQueryWrapper<>();
+        if (entityType != null && !entityType.isBlank()) {
+            wrapper.eq(AuditOperationLog::getBusinessType, entityType);
+        }
+        if (entityId != null) {
+            wrapper.eq(AuditOperationLog::getBusinessId, entityId);
+        }
+
+        long total = operationLogMapper.selectCount(wrapper);
+
+        wrapper.orderByDesc(AuditOperationLog::getOperatedAt);
+        wrapper.orderByDesc(AuditOperationLog::getId);
+        Page<AuditOperationLog> pageParam = new Page<>(ps[0], ps[1]);
+        List<AuditOperationLog> records = operationLogMapper.selectPage(pageParam, wrapper).getRecords();
+
+        List<Map<String, Object>> items = records.stream()
+                .map(this::toMap)
+                .collect(Collectors.toList());
+        return new PageResponse<>(ps[0], ps[1], total, items);
+    }
+
+    @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> listOperationLogs(
             long page, long size, String businessType, String result, Long operatorId
     ) {
