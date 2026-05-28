@@ -164,7 +164,7 @@ public class WorkflowTaskService {
                     "您的" + title + "已通过全部审批节点，请查看审批结果。", "WORKFLOW", null, wfInstanceId);
             String email = getUserEmail(starterId);
             if (email != null) {
-                emailService.sendApprovalNotification(email, "您的申请已审批通过: " + title,
+                emailService.sendApprovalNotification(starterId, email, "您的申请已审批通过: " + title,
                         "您的" + title + "已通过全部审批节点，请查看审批结果。");
             }
         } else {
@@ -177,7 +177,7 @@ public class WorkflowTaskService {
                         "请及时处理" + title + "的审批。", "WORKFLOW", null, wfInstanceId);
                 String assigneeEmail = getUserEmail(nextAssigneeId);
                 if (assigneeEmail != null) {
-                    emailService.sendApprovalNotification(assigneeEmail, "您有新的审批任务: " + title,
+                    emailService.sendApprovalNotification(nextAssigneeId, assigneeEmail, "您有新的审批任务: " + title,
                             "请及时处理" + title + "的审批。");
                 }
             }
@@ -217,7 +217,7 @@ public class WorkflowTaskService {
                 "您的" + title + "审批未通过，原因: " + (comment == null ? "无" : comment) + "。请修改后重新提交。", "WORKFLOW", null, wfInstanceId);
         String rejectEmail = getUserEmail(starterId);
         if (rejectEmail != null) {
-            emailService.sendApprovalNotification(rejectEmail, "您的申请已被驳回: " + title,
+            emailService.sendApprovalNotification(starterId, rejectEmail, "您的申请已被驳回: " + title,
                     "您的" + title + "审批未通过，原因: " + (comment == null ? "无" : comment) + "。请修改后重新提交。");
         }
         return instanceSummary(wfInstanceId);
@@ -275,7 +275,7 @@ public class WorkflowTaskService {
                 "WORKFLOW", null, wfInstanceId);
         String remindEmail = getUserEmail(assigneeId);
         if (remindEmail != null) {
-            emailService.sendApprovalNotification(remindEmail, "催办提醒: " + title,
+            emailService.sendApprovalNotification(assigneeId, remindEmail, "催办提醒: " + title,
                     user.realName() + " 催促您尽快处理「" + title + "」的「" + nodeName + "」节点。");
         }
         auditService.safeRecordOperation(user.id(), "WF_REMIND", "WF_TASK", wfTaskId, AuditService.SUCCESS, null);
@@ -392,7 +392,7 @@ public class WorkflowTaskService {
             String ccEmail = getUserEmail(rid);
             if (ccEmail != null) {
                 String instTitle = String.valueOf(inst.get("title"));
-                emailService.sendApprovalNotification(ccEmail, "您有一条新的抄送通知: " + instTitle,
+                emailService.sendApprovalNotification(rid, ccEmail, "您有一条新的抄送通知: " + instTitle,
                         user.realName() + " 将「" + instTitle + "」抄送给您。" +
                                 (req.reason() == null ? "" : " 原因: " + req.reason()));
             }

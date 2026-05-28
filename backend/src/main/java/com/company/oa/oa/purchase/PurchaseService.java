@@ -20,11 +20,15 @@ import com.company.oa.common.service.SequenceService;
 import com.company.oa.common.service.OaPermissionUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.alibaba.excel.EasyExcel;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -282,6 +286,63 @@ public class PurchaseService {
                 .setSql("version = version + 1");
         purchaseMapper.update(null, uw);
         return detail(id);
+    }
+
+    @Transactional(readOnly = true)
+    public void exportPurchases(Map<String, Object> filter, HttpServletResponse response) {
+        AuthUser user = authService.currentUser();
+        LambdaQueryWrapper<OaPurchase> qw = new LambdaQueryWrapper<>();
+        if (user.permissions().contains("*") && filter != null && filter.containsKey("applicantId")) {
+            qw.eq(OaPurchase::getCreatedBy, ((Number) filter.get("applicantId")).longValue());
+        } else {
+            qw.eq(OaPurchase::getCreatedBy, user.id());
+        }
+        if (filter != null && filter.containsKey("status")) {
+            qw.eq(OaPurchase::getStatus, String.valueOf(filter.get("status")));
+        }
+        qw.select(OaPurchase::getId, OaPurchase::getPurchaseNo, OaPurchase::getPurchaseType,
+                        OaPurchase::getSupplierName, OaPurchase::getBudgetSubject,
+                        OaPurchase::getTotalAmount, OaPurchase::getArrivalStatus,
+                        OaPurchase::getAcceptanceStatus, OaPurchase::getStatus,
+                        OaPurchase::getCreatedBy, OaPurchase::getCreatedNameSnapshot,
+                        OaPurchase::getCreatedDeptNameSnapshot, OaPurchase::getCreatedAt)
+                .orderByDesc(OaPurchase::getId);
+        List<OaPurchase> entities = purchaseMapper.selectList(qw);
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (OaPurchase e : entities) {
+            rows.add(toMap(e));
+        }
+
+        try {
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding("utf-8");
+            String fileName = URLEncoder.encode("采购申请列表", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+            response.setHeader("Content-Disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+            EasyExcel.write(response.getOutputStream())
+                    .head(List.of(
+                            List.of("编号", "采购单号", "采购类型", "供应商", "预算科目",
+                                    "总金额", "到货状态", "验收状态", "状态",
+                                    "申请人", "部门", "创建时间")
+                    ))
+                    .sheet("采购申请列表")
+                    .doWrite(rows.stream().map(r -> List.of(
+                            String.valueOf(r.get("id")),
+                            String.valueOf(r.get("purchaseNo")),
+                            String.valueOf(r.get("purchaseType")),
+                            String.valueOf(r.get("supplierName")),
+                            String.valueOf(r.get("budgetSubject")),
+                            String.valueOf(r.get("totalAmount")),
+                            String.valueOf(r.get("arrivalStatus")),
+                            String.valueOf(r.get("acceptanceStatus")),
+                            String.valueOf(r.get("status")),
+                            String.valueOf(r.get("createdNameSnapshot")),
+                            String.valueOf(r.get("createdDeptNameSnapshot")),
+                            String.valueOf(r.get("createdAt"))
+                    )).toList());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "导出失败: " + e.getMessage());
+        }
     }
 
     private Map<String, Object> loadPurchaseHeader(long id) {

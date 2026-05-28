@@ -2,6 +2,7 @@ package com.company.oa.common.config;
 
 import com.company.oa.auth.JwtAuthenticationFilter;
 import com.company.oa.auth.RestAuthenticationEntryPoint;
+import com.company.oa.common.filter.RateLimitFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,6 +32,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter,
+            RateLimitFilter rateLimitFilter,
             RestAuthenticationEntryPoint authenticationEntryPoint
     ) throws Exception {
         return http
@@ -55,6 +57,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class)
                 .build();
     }
 
