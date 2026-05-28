@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+
 @Service
 public class WorkflowTaskService {
     private static final String PENDING = "PENDING";
@@ -171,10 +172,15 @@ public class WorkflowTaskService {
             instanceMapper.updateCurrentNode(wfInstanceId, firstRuntimeTaskName(processInstanceId));
             Map<String, Object> inst = loadInstance(wfInstanceId);
             String title = String.valueOf(inst.get("title"));
+            long instStarterId = ((Number) inst.get("starterId")).longValue();
             List<Long> pendingAssigneeIds = wfTaskMapper.selectAssigneeIdsByInstanceAndStatus(wfInstanceId, PENDING);
             for (Long nextAssigneeId : pendingAssigneeIds) {
-                messageService.send(nextAssigneeId, "WORKFLOW", "您有新的审批任务: " + title,
-                        "请及时处理" + title + "的审批。", "WORKFLOW", null, wfInstanceId);
+                Map<String, Object> taskContext = new LinkedHashMap<>();
+                taskContext.put("slaDeadline", inst.get("slaDeadline"));
+                taskContext.put("requesterId", instStarterId);
+                taskContext.put("businessType", inst.get("businessType"));
+                messageService.sendContextualNotification(nextAssigneeId, "WORKFLOW", "您有新的审批任务: " + title,
+                        "请及时处理" + title + "的审批。", "WORKFLOW", null, wfInstanceId, taskContext);
                 String assigneeEmail = getUserEmail(nextAssigneeId);
                 if (assigneeEmail != null) {
                     emailService.sendApprovalNotification(nextAssigneeId, assigneeEmail, "您有新的审批任务: " + title,
@@ -270,9 +276,13 @@ public class WorkflowTaskService {
         Map<String, Object> inst = loadInstance(wfInstanceId);
         String title = String.valueOf(inst.get("title"));
         String nodeName = String.valueOf(task.getOrDefault("taskName", "审批节点"));
-        messageService.send(assigneeId, "WORKFLOW", "催办提醒: " + title,
+        Map<String, Object> remindContext = new LinkedHashMap<>();
+        remindContext.put("slaDeadline", inst.get("slaDeadline"));
+        remindContext.put("requesterId", inst.get("starterId"));
+        remindContext.put("businessType", inst.get("businessType"));
+        messageService.sendContextualNotification(assigneeId, "WORKFLOW", "催办提醒: " + title,
                 user.realName() + " 催促您尽快处理「" + title + "」的「" + nodeName + "」节点。",
-                "WORKFLOW", null, wfInstanceId);
+                "WORKFLOW", null, wfInstanceId, remindContext);
         String remindEmail = getUserEmail(assigneeId);
         if (remindEmail != null) {
             emailService.sendApprovalNotification(assigneeId, remindEmail, "催办提醒: " + title,

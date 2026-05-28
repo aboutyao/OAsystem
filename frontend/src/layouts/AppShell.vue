@@ -11,6 +11,7 @@ import SmartCalendar from '../components/SmartCalendar.vue'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import ShortcutHelp from '../components/ShortcutHelp.vue'
 import OnboardingOverlay from '../components/OnboardingOverlay.vue'
+import NaturalLanguageQuery from '../components/NaturalLanguageQuery.vue'
 
 useKeyboardShortcuts()
 
@@ -292,6 +293,8 @@ function closeMobileMenu() {
           </div>
         </div>
         <div class="app-shell__user">
+          <!-- Natural Language Query -->
+          <NaturalLanguageQuery />
           <!-- Command Palette trigger -->
           <div class="app-shell__header-action" @click="commandPaletteRef?.open()" title="命令面板 (⌘K)">
             <el-icon :size="18"><Grid /></el-icon>

@@ -4,6 +4,8 @@ import com.company.oa.auth.AuthService;
 import com.company.oa.auth.AuthUser;
 import com.company.oa.contract.mapper.ContractInfoMapper;
 import com.company.oa.message.MessageService;
+import com.company.oa.oa.mapper.LeaveBalanceMapper;
+import com.company.oa.oa.mapper.OaLeaveMapper;
 import com.company.oa.workflow.mapper.WfProcessInstanceMapper;
 import com.company.oa.workflow.mapper.WfTaskMapper;
 import org.slf4j.Logger;
@@ -14,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,19 +36,25 @@ public class DashboardInsightService {
     private final ContractInfoMapper contractInfoMapper;
     private final AuthService authService;
     private final StringRedisTemplate redisTemplate;
+    private final OaLeaveMapper oaLeaveMapper;
+    private final LeaveBalanceMapper leaveBalanceMapper;
 
     public DashboardInsightService(WfTaskMapper wfTaskMapper,
                                    WfProcessInstanceMapper wfProcessInstanceMapper,
                                    MessageService messageService,
                                    ContractInfoMapper contractInfoMapper,
                                    AuthService authService,
-                                   StringRedisTemplate redisTemplate) {
+                                   StringRedisTemplate redisTemplate,
+                                   OaLeaveMapper oaLeaveMapper,
+                                   LeaveBalanceMapper leaveBalanceMapper) {
         this.wfTaskMapper = wfTaskMapper;
         this.wfProcessInstanceMapper = wfProcessInstanceMapper;
         this.messageService = messageService;
         this.contractInfoMapper = contractInfoMapper;
         this.authService = authService;
         this.redisTemplate = redisTemplate;
+        this.oaLeaveMapper = oaLeaveMapper;
+        this.leaveBalanceMapper = leaveBalanceMapper;
     }
 
     @Transactional(readOnly = true)
@@ -213,6 +223,230 @@ public class DashboardInsightService {
         }
 
         return result;
+    }
+
+    // ─── Predictive Insights ─────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getPredictiveInsights(long userId) {
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        result.put("leaveBalanceForecast", buildLeaveBalanceForecast(userId));
+        result.put("contractExpiryAlert", buildContractExpiryAlert());
+        result.put("approvalWorkloadPrediction", buildApprovalWorkloadPrediction(userId));
+        result.put("slaRiskCount", buildSlaRiskCount(userId));
+
+        return result;
+    }
+
+    // ─── Leave Balance Forecast ──────────────────────────────────────────
+
+    private Map<String, Object> buildLeaveBalanceForecast(long userId) {
+        Map<String, Object> forecast = new LinkedHashMap<>();
+        List<Map<String, Object>> leaveTypes = new ArrayList<>();
+
+        // Query current year leave balance from leave_balance table
+        int currentYear = YearMonth.now().getYear();
+        List<com.company.oa.entity.oa.LeaveBalance> balances =
+                leaveBalanceMapper.selectList(
+                        new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.company.oa.entity.oa.LeaveBalance>()
+                                .eq(com.company.oa.entity.oa.LeaveBalance::getUserId, userId)
+                                .eq(com.company.oa.entity.oa.LeaveBalance::getYear, currentYear)
+                                .eq(com.company.oa.entity.oa.LeaveBalance::getDeleted, 0)
+                );
+
+        // Query leave usage history for last 3 months
+        LocalDateTime threeMonthsAgo = LocalDateTime.now().minusMonths(3);
+        List<Map<String, Object>> usageHistory = oaLeaveMapper.selectLeaveUsageHistory(userId, threeMonthsAgo);
+
+        // Build a map of leaveType -> monthly usage
+        Map<String, List<Double>> monthlyUsageByType = new LinkedHashMap<>();
+        for (Map<String, Object> record : usageHistory) {
+            String type = (String) record.get("leaveType");
+            double totalDays = record.get("totalDays") != null ? ((Number) record.get("totalDays")).doubleValue() : 0.0;
+            monthlyUsageByType.computeIfAbsent(type, k -> new ArrayList<>()).add(totalDays);
+        }
+
+        for (com.company.oa.entity.oa.LeaveBalance balance : balances) {
+            Map<String, Object> typeInfo = new LinkedHashMap<>();
+            String leaveType = balance.getLeaveType();
+            typeInfo.put("leaveType", leaveType);
+            typeInfo.put("totalDays", balance.getTotalDays());
+            typeInfo.put("usedDays", balance.getUsedDays());
+            typeInfo.put("remainingDays", balance.getRemainingDays());
+
+            // Calculate usage rate (days per month over last 3 months)
+            List<Double> monthlyUsages = monthlyUsageByType.getOrDefault(leaveType, new ArrayList<>());
+            double avgMonthlyUsage = 0.0;
+            if (!monthlyUsages.isEmpty()) {
+                avgMonthlyUsage = monthlyUsages.stream()
+                        .mapToDouble(Double::doubleValue)
+                        .average()
+                        .orElse(0.0);
+            }
+            typeInfo.put("avgMonthlyUsage", roundToOneDecimal(avgMonthlyUsage));
+
+            // Project depletion date
+            double remaining = balance.getRemainingDays() != null ? balance.getRemainingDays() : 0.0;
+            String depletionForecast = "余额充足";
+            if (avgMonthlyUsage > 0 && remaining > 0) {
+                int monthsUntilDepletion = (int) Math.ceil(remaining / avgMonthlyUsage);
+                YearMonth depletionMonth = YearMonth.now().plusMonths(monthsUntilDepletion);
+                String depletionLabel = depletionMonth.getMonthValue() + " 月";
+                if (monthsUntilDepletion <= 1) {
+                    depletionForecast = "将在本月耗尽";
+                } else {
+                    depletionForecast = leaveType + " 将在 " + depletionLabel + " 耗尽";
+                }
+            } else if (remaining <= 0) {
+                depletionForecast = "已耗尽";
+            }
+            typeInfo.put("depletionForecast", depletionForecast);
+            typeInfo.put("monthsUntilDepletion",
+                    avgMonthlyUsage > 0 && remaining > 0
+                            ? (int) Math.ceil(remaining / avgMonthlyUsage)
+                            : -1);
+
+            leaveTypes.add(typeInfo);
+        }
+
+        forecast.put("leaveTypes", leaveTypes);
+        return forecast;
+    }
+
+    // ─── Contract Expiry Alert ───────────────────────────────────────────
+
+    private Map<String, Object> buildContractExpiryAlert() {
+        Map<String, Object> alert = new LinkedHashMap<>();
+        LocalDate today = LocalDate.now();
+
+        // Contracts expiring in 3 days
+        List<Map<String, Object>> in3Days = contractInfoMapper.selectAllExpiringContracts(
+                today, today.plusDays(3));
+        // Contracts expiring in 7 days (excluding those already in 3-day list)
+        List<Map<String, Object>> in7Days = contractInfoMapper.selectAllExpiringContracts(
+                today.plusDays(4), today.plusDays(7));
+        // Contracts expiring in 30 days (excluding those already in 7-day list)
+        List<Map<String, Object>> in30Days = contractInfoMapper.selectAllExpiringContracts(
+                today.plusDays(8), today.plusDays(30));
+
+        alert.put("criticalCount", in3Days != null ? in3Days.size() : 0);
+        alert.put("criticalContracts", in3Days != null ? in3Days : new ArrayList<>());
+        alert.put("warningCount", in7Days != null ? in7Days.size() : 0);
+        alert.put("warningContracts", in7Days != null ? in7Days : new ArrayList<>());
+        alert.put("infoCount", in30Days != null ? in30Days.size() : 0);
+        alert.put("infoContracts", in30Days != null ? in30Days : new ArrayList<>());
+        alert.put("totalCount",
+                (in3Days != null ? in3Days.size() : 0)
+                        + (in7Days != null ? in7Days.size() : 0)
+                        + (in30Days != null ? in30Days.size() : 0));
+
+        return alert;
+    }
+
+    // ─── Approval Workload Prediction ───────────────────────────────────
+
+    private Map<String, Object> buildApprovalWorkloadPrediction(long userId) {
+        Map<String, Object> prediction = new LinkedHashMap<>();
+
+        // Get daily completed task counts for last 30 days
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        List<Map<String, Object>> dailyCounts = wfTaskMapper.selectDailyCompletedTaskCounts(userId, thirtyDaysAgo);
+
+        double avgTasksPerDay = 0.0;
+        if (dailyCounts != null && !dailyCounts.isEmpty()) {
+            int totalTasks = dailyCounts.stream()
+                    .mapToInt(m -> m.get("taskCount") != null ? ((Number) m.get("taskCount")).intValue() : 0)
+                    .sum();
+            avgTasksPerDay = (double) totalTasks / 30.0;
+        }
+
+        // Today's pending count
+        Long pendingCount = wfTaskMapper.countTodoTasks(userId, "PENDING");
+        long todayPending = pendingCount != null ? pendingCount : 0L;
+
+        prediction.put("avgTasksPerDay", roundToOneDecimal(avgTasksPerDay));
+        prediction.put("todayPendingCount", todayPending);
+
+        // Workload comparison message
+        String workloadMessage;
+        if (avgTasksPerDay > 0) {
+            double ratio = todayPending / avgTasksPerDay;
+            int percentHigher = (int) ((ratio - 1.0) * 100);
+            if (percentHigher > 0) {
+                workloadMessage = "今天待办量高于平均 " + percentHigher + "%";
+            } else if (percentHigher < -10) {
+                workloadMessage = "今天待办量低于平均 " + Math.abs(percentHigher) + "%";
+            } else {
+                workloadMessage = "今天待办量与平均持平";
+            }
+            prediction.put("workloadRatio", roundToOneDecimal(ratio));
+        } else {
+            workloadMessage = "尚无历史数据，无法预测工作量";
+            prediction.put("workloadRatio", null);
+        }
+        prediction.put("workloadMessage", workloadMessage);
+
+        // Active working days in the 30-day window
+        prediction.put("activeDays", dailyCounts != null ? dailyCounts.size() : 0);
+        prediction.put("analysisWindowDays", 30);
+
+        return prediction;
+    }
+
+    // ─── SLA Risk Count ──────────────────────────────────────────────────
+
+    private Map<String, Object> buildSlaRiskCount(long userId) {
+        Map<String, Object> risk = new LinkedHashMap<>();
+
+        List<Map<String, Object>> slaTasks = wfTaskMapper.selectSlaTasksForUser(userId);
+
+        int approachingDeadline = 0;  // < 4 hours remaining
+        int alreadyBreached = 0;      // sla_deadline < now
+
+        List<Map<String, Object>> approachingList = new ArrayList<>();
+        List<Map<String, Object>> breachedList = new ArrayList<>();
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (slaTasks != null) {
+            for (Map<String, Object> task : slaTasks) {
+                Object hoursRemainingObj = task.get("hoursRemaining");
+                if (hoursRemainingObj == null) continue;
+
+                long hoursRemaining = ((Number) hoursRemainingObj).longValue();
+
+                if (hoursRemaining < 0) {
+                    // Already breached
+                    alreadyBreached++;
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("taskId", task.get("taskId"));
+                    entry.put("title", task.get("title"));
+                    entry.put("nodeName", task.get("nodeName"));
+                    entry.put("slaDeadline", task.get("slaDeadline"));
+                    entry.put("hoursOverdue", Math.abs(hoursRemaining));
+                    breachedList.add(entry);
+                } else if (hoursRemaining < 4) {
+                    // Approaching deadline (< 4 hours remaining)
+                    approachingDeadline++;
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("taskId", task.get("taskId"));
+                    entry.put("title", task.get("title"));
+                    entry.put("nodeName", task.get("nodeName"));
+                    entry.put("slaDeadline", task.get("slaDeadline"));
+                    entry.put("hoursRemaining", hoursRemaining);
+                    approachingList.add(entry);
+                }
+            }
+        }
+
+        risk.put("approachingDeadlineCount", approachingDeadline);
+        risk.put("approachingDeadlineTasks", approachingList);
+        risk.put("alreadyBreachedCount", alreadyBreached);
+        risk.put("alreadyBreachedTasks", breachedList);
+        risk.put("totalRiskCount", approachingDeadline + alreadyBreached);
+
+        return risk;
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────

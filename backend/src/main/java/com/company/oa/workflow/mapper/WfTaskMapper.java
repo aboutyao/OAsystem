@@ -126,4 +126,39 @@ public interface WfTaskMapper extends BaseMapper<WfTask> {
               and wt.completed_at is not null
             """)
     Map<String, Object> selectTeamApprovalTimeStats(@Param("userId") long userId);
+
+    // ─── Predictive Insights: Approval Workload ─────────────────────────
+
+    /**
+     * Count tasks completed by a user per day over the last N days (for workload averaging).
+     * Returns list of {day, taskCount} for each calendar day in the window.
+     */
+    @Select("""
+            select DATE(wt.completed_at) as day, count(*) as taskCount
+            from wf_task wt
+            where wt.assignee_id = #{userId}
+              and wt.status in ('COMPLETED', 'CANCELLED')
+              and wt.completed_at is not null
+              and wt.completed_at >= #{since}
+            group by DATE(wt.completed_at)
+            order by day asc
+            """)
+    List<Map<String, Object>> selectDailyCompletedTaskCounts(@Param("userId") long userId,
+                                                             @Param("since") LocalDateTime since);
+
+    /**
+     * SLA tasks for a user: tasks approaching SLA deadline (< 4h remaining) or already breached.
+     * Returns tasks where sla_deadline is set and status is still PENDING.
+     */
+    @Select("""
+            select wt.id as taskId, wt.sla_deadline as slaDeadline, wt.node_name as nodeName,
+                   wt.created_at as createdAt, inst.title as title, inst.business_type as businessType,
+                   TIMESTAMPDIFF(HOUR, NOW(), wt.sla_deadline) as hoursRemaining
+            from wf_task wt
+            join wf_process_instance inst on inst.id = wt.wf_instance_id
+            where wt.assignee_id = #{userId} and wt.status = 'PENDING'
+              and wt.sla_deadline is not null
+            order by wt.sla_deadline asc
+            """)
+    List<Map<String, Object>> selectSlaTasksForUser(@Param("userId") long userId);
 }

@@ -33,4 +33,25 @@ public interface OaLeaveMapper extends BaseMapper<OaLeave> {
             """)
     List<Map<String, Object>> selectTeamLeavesByMonth(@Param("startOfMonth") LocalDateTime startOfMonth,
                                                        @Param("endOfMonth") LocalDateTime endOfMonth);
+
+    /**
+     * Select approved leave records for a user within a date range, grouped by leave type.
+     * Used for leave balance forecasting and usage rate calculation.
+     * Returns {leaveType, totalDays, recordCount, month} for each leave type per month.
+     */
+    @Select("""
+            select l.leave_type as leaveType,
+                   sum(l.duration_days) as totalDays,
+                   count(*) as recordCount,
+                   DATE_FORMAT(l.start_at, '%Y-%m') as month
+            from oa_leave l
+            where l.deleted = 0
+              and l.status = 'APPROVED'
+              and l.created_by = #{userId}
+              and l.start_at >= #{since}
+            group by l.leave_type, DATE_FORMAT(l.start_at, '%Y-%m')
+            order by l.leave_type, month
+            """)
+    List<Map<String, Object>> selectLeaveUsageHistory(@Param("userId") long userId,
+                                                       @Param("since") LocalDateTime since);
 }

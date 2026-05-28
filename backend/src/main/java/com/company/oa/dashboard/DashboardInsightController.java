@@ -37,4 +37,11 @@ public class DashboardInsightController {
         dashboardInsightService.trackAction(user.id(), path);
         return Map.of("status", "ok", "path", path);
     }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/predictive-insights")
+    public Map<String, Object> getPredictiveInsights() {
+        AuthUser user = authService.currentUser();
+        return dashboardInsightService.getPredictiveInsights(user.id());
+    }
 }

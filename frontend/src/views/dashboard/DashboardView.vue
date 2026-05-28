@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useBehaviorTracking } from '../../composables/useBehaviorTracking'
 import {
   getDashboardSummary,
   getDashboardTodos,
@@ -26,6 +27,7 @@ import { Refresh } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { trackAction: trackBehavior } = useBehaviorTracking()
 
 const summary = ref<DashboardSummary | null>(null)
 const todos = ref<DashboardTodo[]>([])
@@ -105,6 +107,7 @@ onMounted(refresh)
 
 function go(path: string) {
   trackQuickAction(path).catch(() => {})
+  trackBehavior(path)
   router.push(path)
 }
 

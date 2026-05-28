@@ -39,4 +39,19 @@ public interface ContractInfoMapper extends BaseMapper<ContractInfo> {
               and end_date between #{from} and #{to}
             """)
     Long countExpiringContracts(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /**
+     * Select all expiring contracts within a date range (global, not user-scoped).
+     * Returns contract details for predictive alerts.
+     */
+    @Select("""
+            select id, contract_no as contractNo, contract_name as contractName,
+                   end_date as endDate, created_by as createdBy
+            from contract_info
+            where deleted = 0 and status in ('SIGNED', 'APPROVED')
+              and end_date between #{from} and #{to}
+            order by end_date asc
+            """)
+    List<Map<String, Object>> selectAllExpiringContracts(@Param("from") LocalDate from,
+                                                         @Param("to") LocalDate to);
 }

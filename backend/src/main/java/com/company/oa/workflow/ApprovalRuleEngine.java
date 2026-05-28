@@ -6,6 +6,8 @@ import com.company.oa.entity.wf.WfApprovalRule;
 import com.company.oa.org.mapper.DeptMapper;
 import com.company.oa.org.mapper.UserMapper;
 import com.company.oa.workflow.mapper.WfApprovalRuleMapper;
+import com.company.oa.workflow.mapper.WfTaskMapper;
+import com.company.oa.workflow.mapper.WfTaskRecordMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -14,6 +16,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,13 +32,18 @@ public class ApprovalRuleEngine {
     private final UserMapper userMapper;
     private final DeptMapper deptMapper;
     private final ObjectMapper objectMapper;
+    private final WfTaskMapper wfTaskMapper;
+    private final WfTaskRecordMapper wfTaskRecordMapper;
 
     public ApprovalRuleEngine(WfApprovalRuleMapper ruleMapper, UserMapper userMapper,
-                              DeptMapper deptMapper, ObjectMapper objectMapper) {
+                              DeptMapper deptMapper, ObjectMapper objectMapper,
+                              WfTaskMapper wfTaskMapper, WfTaskRecordMapper wfTaskRecordMapper) {
         this.ruleMapper = ruleMapper;
         this.userMapper = userMapper;
         this.deptMapper = deptMapper;
         this.objectMapper = objectMapper;
+        this.wfTaskMapper = wfTaskMapper;
+        this.wfTaskRecordMapper = wfTaskRecordMapper;
     }
 
     /**

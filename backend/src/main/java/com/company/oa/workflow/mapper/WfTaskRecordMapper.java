@@ -47,4 +47,22 @@ public interface WfTaskRecordMapper extends BaseMapper<WfTaskRecord> {
             where parent_record_id = #{parentRecordId}
             """)
     Long countRepliesByParentId(@Param("parentRecordId") long parentRecordId);
+
+    /**
+     * Return approval performance statistics for a user.
+     * Calculates average response hours (time between task creation and approval action)
+     * and total approval count from wf_task_record joined with wf_task.
+     * Used by the smart routing engine to score potential approvers.
+     */
+    @Select("""
+            select count(*) as totalApprovals,
+                   avg(TIMESTAMPDIFF(HOUR, t.created_at, r.operated_at)) as avgResponseHours
+            from wf_task_record r
+            join wf_task t on t.id = r.task_id
+            where r.operator_id = #{userId}
+              and r.action in ('APPROVED', 'REJECTED')
+              and r.operated_at is not null
+              and t.created_at is not null
+            """)
+    Map<String, Object> selectApprovalStats(@Param("userId") long userId);
 }

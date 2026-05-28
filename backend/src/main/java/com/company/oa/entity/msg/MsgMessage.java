@@ -38,4 +38,6 @@ public class MsgMessage {
     private LocalDateTime createdAt;
 
     private LocalDateTime readAt;
+
+    private String contextJson;
 }
