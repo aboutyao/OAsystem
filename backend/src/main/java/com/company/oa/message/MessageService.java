@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -118,6 +119,73 @@ public class MessageService {
                         .set(MsgMessage::getReadStatus, READ)
                         .set(MsgMessage::getReadAt, LocalDateTime.now()));
         return Map.of("updated", req.ids().size());
+    }
+
+    /**
+     * Returns messages grouped by messageType with unread counts per group,
+     * plus the paginated message list across all types.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getGroupedMessages(long userId, int page, int size) {
+        // 1. Fetch all unread, non-archived messages for the user
+        List<MsgMessage> allUnread = messageMapper.selectList(
+                new LambdaQueryWrapper<MsgMessage>()
+                        .eq(MsgMessage::getReceiverId, userId)
+                        .eq(MsgMessage::getReadStatus, UNREAD)
+                        .eq(MsgMessage::getArchiveStatus, NORMAL)
+                        .orderByDesc(MsgMessage::getCreatedAt));
+
+        // 2. Group by messageType and build summary
+        Map<String, List<MsgMessage>> grouped = allUnread.stream()
+                .collect(Collectors.groupingBy(
+                        MsgMessage::getMessageType,
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+
+        List<Map<String, Object>> groups = new ArrayList<>();
+        for (Map.Entry<String, List<MsgMessage>> entry : grouped.entrySet()) {
+            Map<String, Object> g = new LinkedHashMap<>();
+            g.put("messageType", entry.getKey());
+            g.put("unreadCount", entry.getValue().size());
+            groups.add(g);
+        }
+
+        // 3. Paginated flat list of ALL messages (not just unread)
+        long[] ps = paginationHelper.clamp(page, size);
+        LambdaQueryWrapper<MsgMessage> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MsgMessage::getReceiverId, userId);
+        long total = messageMapper.selectCount(wrapper);
+        wrapper.orderByDesc(MsgMessage::getCreatedAt);
+        wrapper.orderByDesc(MsgMessage::getId);
+        Page<MsgMessage> pageParam = new Page<>(ps[0], ps[1]);
+        List<Map<String, Object>> items = messageMapper.selectPage(pageParam, wrapper)
+                .getRecords().stream()
+                .map(this::toMap)
+                .collect(Collectors.toList());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("groups", groups);
+        result.put("totalUnread", allUnread.size());
+        result.put("page", ps[0]);
+        result.put("size", ps[1]);
+        result.put("total", total);
+        result.put("items", items);
+        return result;
+    }
+
+    /**
+     * Marks all unread, non-archived messages for the given user as read.
+     */
+    @Transactional
+    public Map<String, Object> markAllAsRead(long userId) {
+        int rows = messageMapper.update(null,
+                new LambdaUpdateWrapper<MsgMessage>()
+                        .eq(MsgMessage::getReceiverId, userId)
+                        .eq(MsgMessage::getReadStatus, UNREAD)
+                        .eq(MsgMessage::getArchiveStatus, NORMAL)
+                        .set(MsgMessage::getReadStatus, READ)
+                        .set(MsgMessage::getReadAt, LocalDateTime.now()));
+        return Map.of("updated", rows);
     }
 
     @Transactional
