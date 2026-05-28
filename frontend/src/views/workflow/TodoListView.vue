@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { approveTask, batchApprove as batchApproveApi, rejectTask, todoTasks, listCommentTemplates, createCommentTemplate, deleteCommentTemplate } from '../../api/workflow'
+import { approveTask, batchApprove as batchApproveApi, rejectTask, todoTasks, listCommentTemplates, createCommentTemplate, deleteCommentTemplate, getApprovalContext } from '../../api/workflow'
 import type { JsonObject } from '../../api/types'
 import { formatDisplayDateTime } from '../oa/oa-shared'
 import type { TableInstance } from 'element-plus'
@@ -22,6 +22,8 @@ const comment = ref('')
 const acting = ref(false)
 const commentTemplates = ref<JsonObject[]>([])
 const newTemplateContent = ref('')
+const approvalContext = ref<JsonObject | null>(null)
+const contextLoading = ref(false)
 
 onMounted(async () => {
   try {
@@ -59,7 +61,20 @@ function taskId(row: JsonObject): number {
 function openHandle(row: JsonObject) {
   current.value = row
   comment.value = ''
+  approvalContext.value = null
   dialogVisible.value = true
+  loadApprovalContext(row)
+}
+
+async function loadApprovalContext(row: JsonObject) {
+  contextLoading.value = true
+  try {
+    approvalContext.value = await getApprovalContext(taskId(row))
+  } catch {
+    approvalContext.value = null
+  } finally {
+    contextLoading.value = false
+  }
 }
 
 function closeDialog() {
@@ -222,10 +237,54 @@ function goDone() {
       </div>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" title="办理待办" width="520px" destroy-on-close @closed="current = null">
+    <el-dialog v-model="dialogVisible" title="办理待办" width="600px" destroy-on-close @closed="current = null">
       <template v-if="current">
         <p><strong>{{ current.title }}</strong></p>
         <p class="muted">节点：{{ current.nodeName }}</p>
+
+        <!-- Smart Approval Context Panel -->
+        <div v-if="contextLoading" class="context-panel context-panel--loading">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <span>加载审批上下文...</span>
+        </div>
+        <div v-else-if="approvalContext" class="context-panel">
+          <div class="context-panel__header">
+            <el-icon :size="14"><InfoFilled /></el-icon>
+            <span>审批参考信息</span>
+          </div>
+
+          <!-- Requester Info -->
+          <div v-if="approvalContext.requester" class="context-section">
+            <div class="context-row">
+              <span class="context-label">申请人</span>
+              <span class="context-value">{{ (approvalContext.requester as any).realName }}</span>
+              <el-tag size="small" type="info">{{ (approvalContext.requester as any).deptName }}</el-tag>
+            </div>
+          </div>
+
+          <!-- Risk Flags -->
+          <div v-if="(approvalContext.riskFlags as any[])?.length" class="context-section">
+            <div class="context-row" v-for="flag in (approvalContext.riskFlags as any[])" :key="flag">
+              <el-tag size="small" :type="flag.includes('高') ? 'danger' : 'warning'" effect="light">
+                {{ flag }}
+              </el-tag>
+            </div>
+          </div>
+
+          <!-- History Summary -->
+          <div v-if="(approvalContext.requesterHistory as any[])?.length" class="context-section">
+            <div class="context-subtitle">近期审批记录</div>
+            <div class="context-history">
+              <div v-for="(h, i) in (approvalContext.requesterHistory as any[]).slice(0, 3)" :key="i" class="context-history__item">
+                <el-tag size="small" :type="h.action === 'APPROVE' ? 'success' : h.action === 'REJECT' ? 'danger' : 'info'">
+                  {{ h.action === 'APPROVE' ? '通过' : h.action === 'REJECT' ? '驳回' : h.action }}
+                </el-tag>
+                <span class="context-history__node">{{ h.nodeName }}</span>
+                <span class="context-history__time">{{ h.operatedAt }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div v-if="commentTemplates.length > 0" class="template-tags">
           <span class="muted" style="font-size: 12px">常用意见：</span>
@@ -276,5 +335,93 @@ function goDone() {
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+/* Approval Context Panel */
+.context-panel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.context-panel--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.context-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 10px;
+}
+
+.context-section {
+  margin-bottom: 8px;
+}
+
+.context-section:last-child {
+  margin-bottom: 0;
+}
+
+.context-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.context-label {
+  color: #94a3b8;
+  min-width: 60px;
+}
+
+.context-value {
+  color: #334155;
+  font-weight: 500;
+}
+
+.context-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.context-history {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.context-history__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.context-history__node {
+  color: #64748b;
+  flex: 1;
+}
+
+.context-history__time {
+  color: #94a3b8;
 }
 </style>

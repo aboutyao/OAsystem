@@ -73,4 +73,20 @@ public interface MeetingBookingMapper extends BaseMapper<MeetingBooking> {
                           @Param("start") LocalDateTime start,
                           @Param("end") LocalDateTime end,
                           @Param("excludeId") Long excludeId);
+
+    @Select("""
+            select b.id, b.title, b.start_at as startAt, b.end_at as endAt, b.status,
+                   r.room_name as roomName,
+                   u.real_name as organizerName
+            from meeting_booking b
+            join meeting_room r on r.id = b.room_id and r.deleted = 0
+            join org_user u on u.id = b.organizer_id and u.deleted = 0
+            where b.deleted = 0
+              and b.status = 'CONFIRMED'
+              and b.start_at <= #{endOfMonth}
+              and b.end_at >= #{startOfMonth}
+            order by b.start_at
+            """)
+    List<Map<String, Object>> selectMeetingsByMonth(@Param("startOfMonth") LocalDateTime startOfMonth,
+                                                     @Param("endOfMonth") LocalDateTime endOfMonth);
 }

@@ -49,6 +49,10 @@ export function approveTask(taskId: number, body?: { comment?: string | null; at
   return http.post<unknown, JsonObject>(`/workflow/tasks/${taskId}/approve`, body ?? {})
 }
 
+export function getApprovalContext(taskId: number) {
+  return http.get<unknown, JsonObject>(`/workflow/tasks/${taskId}/context`)
+}
+
 export function rejectTask(taskId: number, body?: { comment?: string | null; rejectTo?: string | null }) {
   return http.post<unknown, JsonObject>(`/workflow/tasks/${taskId}/reject`, body ?? {})
 }
