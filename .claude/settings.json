@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=\"$CLAUDE_FILE_PATH\"; if echo \"$FILE\" | grep -qE '\\.java$'; then cd /home/ubuntu/OAsystem/backend && mvn compile -q 2>&1 | tail -5; elif echo \"$FILE\" | grep -qE '\\.(vue|ts)$'; then cd /home/ubuntu/OAsystem/frontend && npx vue-tsc --noEmit 2>&1 | tail -10; fi"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /home/ubuntu/OAsystem && git diff --stat HEAD 2>/dev/null | tail -5"
+          }
+        ]
+      }
+    ]
+  }
+}
