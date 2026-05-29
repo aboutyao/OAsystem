@@ -24,6 +24,7 @@ import {
 } from '../../api/dashboard'
 import { formatDisplayDateTime, statusLabel } from '../oa/oa-shared'
 import { Refresh } from '@element-plus/icons-vue'
+import BudgetWarningBanner from '../../components/BudgetWarningBanner.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -181,6 +182,9 @@ const statCards = computed(() => [
         <el-button :icon="Refresh" circle @click="refresh" :loading="loading" />
       </div>
     </section>
+
+    <!-- Budget Warnings -->
+    <BudgetWarningBanner />
 
     <!-- Stat Cards -->
     <section class="stat-grid">

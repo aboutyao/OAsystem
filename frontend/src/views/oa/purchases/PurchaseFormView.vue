@@ -2,10 +2,12 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { UploadFilled } from '@element-plus/icons-vue'
+import { UploadFilled, Warning, View } from '@element-plus/icons-vue'
+import FilePreview from '../../../components/FilePreview.vue'
 import { createPurchase, getPurchase, updatePurchase } from '../../../api/oa-purchases'
 import { uploadSealAttachment } from '../../../api/oa-seals'
 import { useAutoSave } from '../../../composables/useAutoSave'
+import { checkAttachmentCompleteness, getAttachmentSuggestions } from '../../../composables/useAttachmentCheck'
 import type { JsonObject } from '../../../api/types'
 
 const route = useRoute()
@@ -191,6 +193,14 @@ function removeAttachment(index: number) {
   form.attachments.splice(index, 1)
 }
 
+// 文件预览
+const previewVisible = ref(false)
+const previewFile = ref({ url: '', name: '' })
+function openPreview(file: { url: string; name: string }) {
+  previewFile.value = file
+  previewVisible.value = true
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
@@ -212,6 +222,10 @@ async function onSave() {
         return
       }
     }
+
+    // 附件完整性检查
+    const passed = await checkAttachmentCompleteness(form.attachments, form.purchaseType, 'purchase')
+    if (!passed) return
 
     isSubmitting = true
     const totalAmount = sumAmount.value
@@ -301,11 +315,18 @@ async function onSave() {
               <div class="el-upload__tip">支持 PDF、Word、Excel 格式，单个文件不超过 20MB</div>
             </template>
           </el-upload>
+          <div v-if="getAttachmentSuggestions(form.purchaseType, 'purchase').required.length" class="attachment-suggestions">
+            <el-text type="warning" size="small">
+              <el-icon><Warning /></el-icon>
+              建议上传：{{ getAttachmentSuggestions(form.purchaseType, 'purchase').required.join('、') }}
+            </el-text>
+          </div>
           <div v-if="form.attachments.length" class="attachment-list">
             <div v-for="(file, index) in form.attachments" :key="index" class="attachment-item">
               <el-icon><Document /></el-icon>
               <span class="attachment-name">{{ file.name }}</span>
               <span class="attachment-size">{{ formatFileSize(file.size) }}</span>
+              <el-button type="primary" link :icon="View" @click="openPreview(file)" />
               <el-button type="danger" link :icon="Delete" @click="removeAttachment(index)" />
             </div>
           </div>
@@ -359,6 +380,12 @@ async function onSave() {
       </el-form>
     </el-card>
   </div>
+
+  <FilePreview
+    v-model:visible="previewVisible"
+    :url="previewFile.url"
+    :name="previewFile.name"
+  />
 </template>
 
 <style scoped>
@@ -398,5 +425,9 @@ async function onSave() {
 .attachment-size {
   color: var(--el-text-color-secondary);
   font-size: 12px;
+}
+
+.attachment-suggestions {
+  margin-top: 8px;
 }
 </style>

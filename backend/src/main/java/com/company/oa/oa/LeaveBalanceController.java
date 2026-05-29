@@ -26,4 +26,10 @@ public class LeaveBalanceController {
     public List<Map<String, Object>> userBalance(@PathVariable long userId) {
         return leaveBalanceService.getUserBalance(userId);
     }
+
+    @PreAuthorize("hasAnyAuthority('*', 'org:view')")
+    @GetMapping("/predict")
+    public Map<String, Object> predictBalanceExhaustion() {
+        return leaveBalanceService.predictBalanceExhaustion();
+    }
 }

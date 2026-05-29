@@ -9,6 +9,7 @@ import { usePaginatedList } from '../../../composables/usePaginatedList'
 import { useFilterPersistence } from '../../../composables/useFilterPersistence'
 import { formatRelativeTime, OA_STATUS_LABEL, statusLabel } from '../oa-shared'
 import type { TableInstance } from 'element-plus'
+import LeaveBalancePredictor from '../../../components/LeaveBalancePredictor.vue'
 
 const router = useRouter()
 const { loading, rows, total, page, size, load, handleSizeChange } = usePaginatedList<JsonObject>(listLeaves)
@@ -221,6 +222,8 @@ async function batchWithdraw() {
       </el-button>
       <el-button @click="clearSelection">取消选择</el-button>
     </div>
+
+    <LeaveBalancePredictor />
 
     <el-card shadow="never">
       <div class="oa-filter-bar">

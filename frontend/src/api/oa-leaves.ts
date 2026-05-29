@@ -25,3 +25,16 @@ export function teamLeaveCalendar(start: string, end: string) {
 export function exportLeaves(filter?: Record<string, unknown>) {
   return http.post('/oa/leaves/export', filter ?? {}, { responseType: 'blob' })
 }
+
+// 请假余额相关
+export function getMyLeaveBalance() {
+  return http.get<unknown, JsonObject[]>('/leave-balance/my')
+}
+
+export function getUserLeaveBalance(userId: number) {
+  return http.get<unknown, JsonObject[]>(`/leave-balance/user/${userId}`)
+}
+
+export function predictLeaveBalanceExhaustion() {
+  return http.get<unknown, JsonObject>('/leave-balance/predict')
+}
