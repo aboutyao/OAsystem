@@ -15,3 +15,11 @@ export const cancelSeal = crud.cancel
 export function returnSeal(id: number) {
   return http.post<unknown, JsonObject>(`/oa/seal-applies/${id}/return`)
 }
+
+export function uploadSealAttachment(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return http.post<unknown, { url: string; name: string; size: number }>('/file-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}

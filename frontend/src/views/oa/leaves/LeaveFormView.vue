@@ -5,7 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { calculateLeaveDuration, createLeave, getLeave, updateLeave } from '../../../api/oa-leaves'
 import { getMyLeaveBalance, type LeaveBalanceItem } from '../../../api/dashboard'
 import { computeLeaveSpan } from '../oa-shared'
-import { useAutoSave } from '../../composables/useAutoSave'
+import { useAutoSave } from '../../../composables/useAutoSave'
 
 const route = useRoute()
 const router = useRouter()

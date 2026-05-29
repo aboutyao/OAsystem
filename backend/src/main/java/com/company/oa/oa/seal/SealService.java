@@ -18,6 +18,9 @@ import com.company.oa.workflow.WorkflowService;
 import com.company.oa.common.service.SequenceService;
 import com.company.oa.common.service.OaPermissionUtils;
 import com.alibaba.excel.EasyExcel;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,11 +48,12 @@ public class SealService {
     private final AuditService auditService;
     private final SequenceService sequenceService;
     private final UserMapper userMapper;
+    private final ObjectMapper objectMapper;
 
     public SealService(OaSealApplyMapper oaSealApplyMapper, PaginationHelper paginationHelper,
                        AuthService authService, WorkflowService workflowService,
                        AuditService auditService, SequenceService sequenceService,
-                       UserMapper userMapper) {
+                       UserMapper userMapper, ObjectMapper objectMapper) {
         this.oaSealApplyMapper = oaSealApplyMapper;
         this.paginationHelper = paginationHelper;
         this.authService = authService;
@@ -57,6 +61,7 @@ public class SealService {
         this.auditService = auditService;
         this.sequenceService = sequenceService;
         this.userMapper = userMapper;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
@@ -104,6 +109,7 @@ public class SealService {
         entity.setUseReason(req.useReason());
         entity.setUseAt(req.useAt());
         entity.setOutFlag(req.outFlag());
+        entity.setAttachments(convertAttachmentsToJson(req.attachments()));
         entity.setStatus(DRAFT);
         entity.setCreatedBy(user.id());
         entity.setCreatedNameSnapshot(user.realName());
@@ -128,6 +134,7 @@ public class SealService {
         entity.setUseReason(req.useReason());
         entity.setUseAt(req.useAt());
         entity.setOutFlag(req.outFlag());
+        entity.setAttachments(convertAttachmentsToJson(req.attachments()));
         oaSealApplyMapper.update(entity, new LambdaQueryWrapper<OaSealApply>()
                 .eq(OaSealApply::getId, id)
                 .eq(OaSealApply::getDeleted, 0));
@@ -291,6 +298,7 @@ public class SealService {
         map.put("useReason", entity.getUseReason());
         map.put("useAt", entity.getUseAt());
         map.put("outFlag", entity.getOutFlag());
+        map.put("attachments", parseAttachmentsFromJson(entity.getAttachments()));
         map.put("returnAt", entity.getReturnAt());
         map.put("status", entity.getStatus());
         map.put("createdBy", entity.getCreatedBy());
@@ -301,6 +309,35 @@ public class SealService {
         map.put("updatedAt", entity.getUpdatedAt());
         map.put("version", entity.getVersion());
         return map;
+    }
+
+    private String convertAttachmentsToJson(List<SealDtos.AttachmentDto> attachments) {
+        if (attachments == null || attachments.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(attachments);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "附件序列化失败");
+        }
+    }
+
+    private List<Map<String, Object>> parseAttachmentsFromJson(String json) {
+        if (json == null || json.isEmpty()) {
+            return List.of();
+        }
+        try {
+            List<SealDtos.AttachmentDto> attachments = objectMapper.readValue(json, new TypeReference<>() {});
+            return attachments.stream().map(a -> {
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("name", a.name());
+                map.put("url", a.url());
+                map.put("size", a.size());
+                return map;
+            }).toList();
+        } catch (JsonProcessingException e) {
+            return List.of();
+        }
     }
 
 }

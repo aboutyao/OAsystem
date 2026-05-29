@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public final class SealDtos {
     private SealDtos() {
@@ -17,7 +18,8 @@ public final class SealDtos {
             @NotBlank String fileTitle,
             String useReason,
             @NotNull LocalDateTime useAt,
-            @NotNull @Min(0) @Max(1) int outFlag
+            @NotNull @Min(0) @Max(1) int outFlag,
+            List<AttachmentDto> attachments
     ) {
     }
 
@@ -27,7 +29,11 @@ public final class SealDtos {
             @NotBlank String fileTitle,
             String useReason,
             @NotNull LocalDateTime useAt,
-            @NotNull @Min(0) @Max(1) int outFlag
+            @NotNull @Min(0) @Max(1) int outFlag,
+            List<AttachmentDto> attachments
     ) {
+    }
+
+    public record AttachmentDto(String name, String url, long size) {
     }
 }

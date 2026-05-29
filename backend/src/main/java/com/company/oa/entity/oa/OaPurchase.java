@@ -34,6 +34,8 @@ public class OaPurchase extends VersionedEntity {
 
     private String reason;
 
+    private String attachments;
+
     private String status;
 
     private Long createdBy;

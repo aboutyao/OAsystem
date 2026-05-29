@@ -30,6 +30,8 @@ public class OaSealApply extends VersionedEntity {
 
     private Integer outFlag;
 
+    private String attachments;
+
     private LocalDateTime returnAt;
 
     private String status;

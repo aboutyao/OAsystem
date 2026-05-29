@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { UploadFilled } from '@element-plus/icons-vue'
 import { createPurchase, getPurchase, updatePurchase } from '../../../api/oa-purchases'
+import { uploadSealAttachment } from '../../../api/oa-seals'
+import { useAutoSave } from '../../../composables/useAutoSave'
 import type { JsonObject } from '../../../api/types'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const saving = ref(false)
+const formRef = ref<FormInstance>()
 
 const isEdit = computed(() => route.name === 'purchase-edit')
 const id = computed(() => (isEdit.value ? Number(route.params.id) : 0))
@@ -18,6 +22,7 @@ const form = reactive({
   supplierName: '',
   budgetSubject: '',
   reason: '',
+  attachments: [] as Array<{ name: string; url: string; size: number }>,
 })
 
 type ItemRow = {
@@ -35,6 +40,56 @@ const items = ref<ItemRow[]>([
 ])
 
 const sumAmount = computed(() => items.value.reduce((s, it) => s + Number(it.amount || 0), 0))
+
+const rules: FormRules = {
+  purchaseType: [{ required: true, message: '请选择采购类型', trigger: 'change' }],
+  reason: [{ required: true, message: '请输入采购事由', trigger: 'blur' }],
+}
+
+// 自动保存草稿
+const { lastSaved, save, restore, clear } = useAutoSave(
+  { form, items: items.value } as any,
+  `purchase_draft_${isEdit.value ? id.value : 'new'}`,
+  { interval: 30000 }
+)
+
+// 脏数据检测
+let isDirty = false
+let isSubmitting = false
+
+watch(
+  () => ({ ...form, items: [...items.value] }),
+  () => {
+    if (!isSubmitting) isDirty = true
+  },
+  { deep: true }
+)
+
+onBeforeRouteLeave((to, from, next) => {
+  if (isDirty && !isSubmitting) {
+    if (window.confirm('有未保存的修改，确定离开吗？')) {
+      clear()
+      next()
+    } else {
+      next(false)
+    }
+  } else {
+    next()
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+  if (isDirty && !isSubmitting) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
+}
+
+window.addEventListener('beforeunload', handleBeforeUnload)
 
 watch(
   items,
@@ -67,6 +122,16 @@ function removeItem(i: number) {
 }
 
 onMounted(async () => {
+  // 尝试恢复草稿
+  const draft = restore()
+  if (!isEdit.value && draft) {
+    if (draft.form) Object.assign(form, draft.form)
+    if (draft.items && Array.isArray(draft.items) && draft.items.length) {
+      items.value = draft.items
+    }
+    ElMessage.info('已恢复草稿')
+  }
+
   if (!isEdit.value) return
   loading.value = true
   try {
@@ -80,6 +145,7 @@ onMounted(async () => {
     form.supplierName = String(data.supplierName ?? '')
     form.budgetSubject = String(data.budgetSubject ?? '')
     form.reason = String(data.reason ?? '')
+    form.attachments = (data as any).attachments ?? []
     const raw = (data as { items?: JsonObject[] }).items
     if (Array.isArray(raw) && raw.length) {
       items.value = raw.map((r, idx) => ({
@@ -92,6 +158,7 @@ onMounted(async () => {
         sortOrder: Number(r.sortOrder ?? idx),
       }))
     }
+    clear() // 编辑模式加载成功后清除草稿
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
     router.push('/oa/purchases')
@@ -100,50 +167,91 @@ onMounted(async () => {
   }
 })
 
-async function onSave() {
-  if (!items.value.length) {
-    ElMessage.warning('请至少一行明细')
+// 附件上传
+const uploadLoading = ref(false)
+async function handleUpload(options: { file: File }) {
+  const file = options.file
+  if (file.size > 20 * 1024 * 1024) {
+    ElMessage.error('文件大小不能超过 20MB')
     return
   }
-  for (const it of items.value) {
-    if (!it.itemName) {
-      ElMessage.warning('请填写每行品名')
+  uploadLoading.value = true
+  try {
+    const result = await uploadSealAttachment(file)
+    form.attachments.push({ name: result.name, url: result.url, size: result.size })
+    ElMessage.success('上传成功')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '上传失败')
+  } finally {
+    uploadLoading.value = false
+  }
+}
+
+function removeAttachment(index: number) {
+  form.attachments.splice(index, 1)
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+async function onSave() {
+  if (!formRef.value) return
+  await formRef.value.validate(async (valid) => {
+    if (!valid) return
+
+    if (!items.value.length) {
+      ElMessage.warning('请至少一行明细')
       return
     }
-  }
-  const totalAmount = sumAmount.value
-  const body = {
-    purchaseType: form.purchaseType,
-    totalAmount,
-    supplierName: form.supplierName || null,
-    budgetSubject: form.budgetSubject || null,
-    reason: form.reason || null,
-    items: items.value.map((it, idx) => ({
-      itemName: it.itemName,
-      specification: it.specification || null,
-      quantity: it.quantity,
-      unit: it.unit || null,
-      unitPrice: it.unitPrice,
-      amount: it.amount,
-      sortOrder: idx,
-    })),
-  }
-  saving.value = true
-  try {
-    if (isEdit.value) {
-      await updatePurchase(id.value, body)
-      ElMessage.success('已保存')
-      router.push(`/oa/purchases/${id.value}`)
-    } else {
-      const created = await createPurchase(body)
-      ElMessage.success('已创建')
-      router.push(`/oa/purchases/${Number(created.id)}`)
+    for (const it of items.value) {
+      if (!it.itemName) {
+        ElMessage.warning('请填写每行品名')
+        return
+      }
     }
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '保存失败')
-  } finally {
-    saving.value = false
-  }
+
+    isSubmitting = true
+    const totalAmount = sumAmount.value
+    const body = {
+      purchaseType: form.purchaseType,
+      totalAmount,
+      supplierName: form.supplierName || null,
+      budgetSubject: form.budgetSubject || null,
+      reason: form.reason || null,
+      attachments: form.attachments,
+      items: items.value.map((it, idx) => ({
+        itemName: it.itemName,
+        specification: it.specification || null,
+        quantity: it.quantity,
+        unit: it.unit || null,
+        unitPrice: it.unitPrice,
+        amount: it.amount,
+        sortOrder: idx,
+      })),
+    }
+    saving.value = true
+    try {
+      if (isEdit.value) {
+        await updatePurchase(id.value, body)
+        ElMessage.success('已保存')
+        clear()
+        router.push(`/oa/purchases/${id.value}`)
+      } else {
+        const created = await createPurchase(body)
+        ElMessage.success('已创建')
+        clear()
+        router.push(`/oa/purchases/${Number(created.id)}`)
+      }
+    } catch (e) {
+      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+      isSubmitting = false
+    } finally {
+      saving.value = false
+    }
+  })
 }
 </script>
 
@@ -154,12 +262,15 @@ async function onSave() {
         <h2 class="oa-page__title">{{ isEdit ? '编辑采购' : '新建采购' }}</h2>
         <p class="muted">合计须与明细金额之和一致（由明细自动汇总）。</p>
       </div>
-      <el-button @click="router.push(isEdit ? `/oa/purchases/${id}` : '/oa/purchases')">取消</el-button>
+      <div class="head-actions">
+        <span v-if="lastSaved" class="draft-hint">草稿已保存 {{ lastSaved }}</span>
+        <el-button @click="router.push(isEdit ? `/oa/purchases/${id}` : '/oa/purchases')">取消</el-button>
+      </div>
     </div>
 
     <el-card shadow="never">
-      <el-form label-width="100px" style="max-width: 900px">
-        <el-form-item label="采购类型" required>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-width: 900px">
+        <el-form-item label="采购类型" prop="purchaseType">
           <el-select v-model="form.purchaseType" style="width: 100%">
             <el-option label="固定资产" value="固定资产" />
             <el-option label="低值易耗" value="低值易耗" />
@@ -171,13 +282,33 @@ async function onSave() {
           <el-input :model-value="String(sumAmount)" disabled />
         </el-form-item>
         <el-form-item label="供应商">
-          <el-input v-model="form.supplierName" />
+          <el-input v-model="form.supplierName" placeholder="请输入供应商名称" />
         </el-form-item>
         <el-form-item label="预算科目">
-          <el-input v-model="form.budgetSubject" />
+          <el-input v-model="form.budgetSubject" placeholder="请输入预算科目" />
         </el-form-item>
-        <el-form-item label="事由">
-          <el-input v-model="form.reason" type="textarea" :rows="2" />
+        <el-form-item label="事由" prop="reason">
+          <el-input v-model="form.reason" type="textarea" :rows="3" placeholder="请输入采购事由" />
+        </el-form-item>
+        <el-form-item label="附件上传">
+          <el-upload
+            :http-request="handleUpload"
+            :show-file-list="false"
+            :disabled="uploadLoading"
+          >
+            <el-button :icon="UploadFilled" :loading="uploadLoading">{{ uploadLoading ? '上传中...' : '选择文件' }}</el-button>
+            <template #tip>
+              <div class="el-upload__tip">支持 PDF、Word、Excel 格式，单个文件不超过 20MB</div>
+            </template>
+          </el-upload>
+          <div v-if="form.attachments.length" class="attachment-list">
+            <div v-for="(file, index) in form.attachments" :key="index" class="attachment-item">
+              <el-icon><Document /></el-icon>
+              <span class="attachment-name">{{ file.name }}</span>
+              <span class="attachment-size">{{ formatFileSize(file.size) }}</span>
+              <el-button type="danger" link :icon="Delete" @click="removeAttachment(index)" />
+            </div>
+          </div>
         </el-form-item>
 
         <el-form-item label="采购明细">
@@ -222,10 +353,50 @@ async function onSave() {
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" :loading="saving" @click="onSave">保存</el-button>
+          <el-button type="primary" :loading="saving" @click="onSave">{{ saving ? '保存中...' : '保存' }}</el-button>
+          <el-button @click="router.push(isEdit ? `/oa/purchases/${id}` : '/oa/purchases')">取消</el-button>
         </el-form-item>
       </el-form>
     </el-card>
   </div>
 </template>
 
+<style scoped>
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.draft-hint {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.attachment-list {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.attachment-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-size {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+</style>

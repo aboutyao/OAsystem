@@ -37,7 +37,7 @@ const groupedNotifications = computed(() => {
       latest: items[0],
       items,
     }))
-    .sort((a, b) => b.unread - a.unread || a.items[0]?.createdAt?.localeCompare(b.items[0]?.createdAt) ?? 0)
+    .sort((a, b) => b.unread - a.unread || (a.items[0]?.createdAt?.localeCompare(b.items[0]?.createdAt) ?? 0))
 })
 
 const filteredNotifications = computed(() => {
