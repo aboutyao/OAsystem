@@ -68,9 +68,9 @@ update)
     echo "[1/3] 停止应用服务..."
     docker compose stop backend frontend
 
-    echo "[2/3] 删除旧容器并强制重建（无缓存）..."
+    echo "[2/3] 删除旧容器并重建..."
     docker compose rm -f backend frontend
-    docker compose build --no-cache backend frontend
+    docker compose build backend frontend
     docker compose up -d backend frontend
 
     echo "[3/3] 等待后端启动..."
@@ -84,9 +84,9 @@ backend)
     echo "[1/3] 停止后端..."
     docker compose stop backend
 
-    echo "[2/3] 删除旧容器并强制重建（无缓存）..."
+    echo "[2/3] 删除旧容器并重建..."
     docker compose rm -f backend
-    docker compose build --no-cache backend
+    docker compose build backend
     docker compose up -d backend
 
     echo "[3/3] 等待后端启动..."
@@ -100,9 +100,9 @@ frontend)
     echo "[1/3] 停止前端..."
     docker compose stop frontend
 
-    echo "[2/3] 删除旧容器并强制重建（无缓存）..."
+    echo "[2/3] 删除旧容器并重建..."
     docker compose rm -f frontend
-    docker compose build --no-cache frontend
+    docker compose build frontend
     docker compose up -d frontend
 
     echo "[3/3] 等待前端启动..."
