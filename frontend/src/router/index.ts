@@ -383,7 +383,6 @@ const moduleRoutes: RouteRecordRaw[] = [
   { path: 'smart/theme', name: 'smart-theme', component: () => import('../components/ThemeCustomizer.vue'), meta: { title: '主题定制', module: 'smart' } },
   { path: 'smart/dashboard-config', name: 'smart-dashboard-config', component: () => import('../components/PersonalDashboardConfig.vue'), meta: { title: '仪表盘配置', module: 'smart' } },
   { path: 'smart/accessibility', name: 'smart-accessibility', component: () => import('../components/AccessibilitySettings.vue'), meta: { title: '无障碍设置', module: 'smart' } },
-  { path: 'smart/notifications', name: 'smart-notifications', component: () => import('../components/NotificationSettings.vue'), meta: { title: '通知设置', module: 'smart' } },
   { path: 'smart/operation-replay', name: 'smart-operation-replay', component: () => import('../components/OperationReplay.vue'), meta: { title: '操作回放', module: 'smart' } },
   { path: 'smart/data-lifecycle', name: 'smart-data-lifecycle', component: () => import('../components/DataLifecycleStats.vue'), meta: { title: '数据统计', module: 'smart' } },
 ]

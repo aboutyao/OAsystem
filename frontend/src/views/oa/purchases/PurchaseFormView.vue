@@ -375,7 +375,6 @@ async function onSave() {
 
         <el-form-item>
           <el-button type="primary" :loading="saving" @click="onSave">{{ saving ? '保存中...' : '保存' }}</el-button>
-          <el-button @click="router.push(isEdit ? `/oa/purchases/${id}` : '/oa/purchases')">取消</el-button>
         </el-form-item>
       </el-form>
     </el-card>
