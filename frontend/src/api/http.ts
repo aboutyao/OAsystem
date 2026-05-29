@@ -60,10 +60,19 @@ http.interceptors.response.use(
 
     const status = error.response.status
 
-    if (status === 401 || status === 403) {
+    if (status === 401) {
       localStorage.removeItem('oa_access_token')
       localStorage.removeItem('oa_user')
       window.location.href = '/login'
+    } else if (status === 403) {
+      // 只有非登录接口才跳转，避免登录页死循环
+      if (!error.config?.url?.includes('/auth/login')) {
+        localStorage.removeItem('oa_access_token')
+        localStorage.removeItem('oa_user')
+        window.location.href = '/login'
+      } else {
+        ElMessage.error('账号或密码错误')
+      }
     } else if (status === 409) {
       ElMessage.warning('重复请求，请勿重复提交')
     } else if (status === 429) {
