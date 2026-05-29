@@ -42,7 +42,7 @@ public abstract class BaseMySqlTest {
             String password = System.getenv().getOrDefault("DB_PASSWORD", "root123456");
 
             String jdbcUrl = "jdbc:mysql://" + url + ":" + port + "/" + dbName
-                    + "?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=utf8mb4";
+                    + "?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&characterEncoding=utf8";
 
             DriverManagerDataSource ds = new DriverManagerDataSource(jdbcUrl, user, password);
             ds.setDriverClassName("com.mysql.cj.jdbc.Driver");
