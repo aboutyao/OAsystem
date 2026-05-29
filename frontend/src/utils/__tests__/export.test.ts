@@ -1,16 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { exportToCsv } from '../export'
 
 describe('exportToCsv', () => {
+  const mockCreateObjectURL = vi.fn().mockReturnValue('blob:url')
+  const mockRevokeObjectURL = vi.fn()
+  const mockClick = vi.fn()
+
   beforeEach(() => {
     // Mock DOM APIs
     vi.spyOn(document, 'createElement').mockReturnValue({
       href: '',
       download: '',
-      click: vi.fn(),
+      click: mockClick,
     } as any)
-    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:url')
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+
+    // Mock URL APIs
+    global.URL.createObjectURL = mockCreateObjectURL
+    global.URL.revokeObjectURL = mockRevokeObjectURL
   })
 
   afterEach(() => {
@@ -26,14 +32,14 @@ describe('exportToCsv', () => {
 
     exportToCsv(data, 'test', columns)
 
-    const blobCall = (URL.createObjectURL as any).mock.calls[0]
-    expect(blobCall).toBeDefined()
+    expect(mockCreateObjectURL).toHaveBeenCalled()
+    expect(mockClick).toHaveBeenCalled()
   })
 
   it('should handle empty data', () => {
     exportToCsv([], 'empty', [])
     // Should not create blob for empty data
-    expect(URL.createObjectURL).not.toHaveBeenCalled()
+    expect(mockCreateObjectURL).not.toHaveBeenCalled()
   })
 
   it('should escape CSV values with commas', () => {
@@ -42,6 +48,6 @@ describe('exportToCsv', () => {
 
     // Should not throw
     exportToCsv(data, 'escape-test', columns)
-    expect(URL.createObjectURL).toHaveBeenCalled()
+    expect(mockCreateObjectURL).toHaveBeenCalled()
   })
 })
