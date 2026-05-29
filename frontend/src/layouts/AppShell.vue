@@ -8,6 +8,7 @@ import { useNotificationSSE } from '../composables/useNotificationSSE'
 import CommandPalette from '../components/CommandPalette.vue'
 import NotificationCenter from '../components/NotificationCenter.vue'
 import SmartCalendar from '../components/SmartCalendar.vue'
+import ErrorBoundary from '../components/ErrorBoundary.vue'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import ShortcutHelp from '../components/ShortcutHelp.vue'
 import OnboardingOverlay from '../components/OnboardingOverlay.vue'
@@ -428,11 +429,13 @@ function closeMobileMenu() {
       </el-header>
 
       <el-main class="app-shell__main">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
+        <ErrorBoundary>
+          <router-view v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </router-view>
+        </ErrorBoundary>
       </el-main>
     </el-container>
   </el-container>

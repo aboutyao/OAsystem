@@ -1031,3 +1031,19 @@ body {
     flex: 1;
   }
 }
+
+/* ============================================================
+   Lazy Loading Images
+   ============================================================ */
+.lazy-image {
+  transition: opacity 0.3s ease;
+  opacity: 0.6;
+}
+
+.lazy-loaded {
+  opacity: 1;
+}
+
+.lazy-error {
+  opacity: 0.8;
+}

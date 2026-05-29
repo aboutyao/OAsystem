@@ -1,108 +1,149 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import AppShell from '../layouts/AppShell.vue'
-import LoginView from '../views/login/LoginView.vue'
-import DashboardView from '../views/dashboard/DashboardView.vue'
-import LeaveListView from '../views/oa/leaves/LeaveListView.vue'
-import LeaveDetailView from '../views/oa/leaves/LeaveDetailView.vue'
-import LeaveFormView from '../views/oa/leaves/LeaveFormView.vue'
-import ExpenseListView from '../views/oa/expenses/ExpenseListView.vue'
-import ExpenseDetailView from '../views/oa/expenses/ExpenseDetailView.vue'
-import ExpenseFormView from '../views/oa/expenses/ExpenseFormView.vue'
-import SealListView from '../views/oa/seals/SealListView.vue'
-import SealDetailView from '../views/oa/seals/SealDetailView.vue'
-import SealFormView from '../views/oa/seals/SealFormView.vue'
-import PurchaseListView from '../views/oa/purchases/PurchaseListView.vue'
-import PurchaseDetailView from '../views/oa/purchases/PurchaseDetailView.vue'
-import PurchaseFormView from '../views/oa/purchases/PurchaseFormView.vue'
-import TodoListView from '../views/workflow/TodoListView.vue'
-import TodoDoneView from '../views/workflow/TodoDoneView.vue'
-import ApplicationListView from '../views/workflow/ApplicationListView.vue'
-import CcListView from '../views/workflow/CcListView.vue'
-import WorkflowTemplatesView from '../views/workflow/WorkflowTemplatesView.vue'
-import WorkflowInstancesView from '../views/workflow/WorkflowInstancesView.vue'
-import WorkflowExceptionsView from '../views/workflow/WorkflowExceptionsView.vue'
-import WorkflowSimulatorView from '../views/workflow/WorkflowSimulatorView.vue'
-import SystemConfigsView from '../views/system/SystemConfigsView.vue'
-import SystemDictsView from '../views/system/SystemDictsView.vue'
-import SystemNumberRulesView from '../views/system/SystemNumberRulesView.vue'
-import SystemWorkCalendarView from '../views/system/SystemWorkCalendarView.vue'
-import SystemImportExportView from '../views/system/SystemImportExportView.vue'
-import FormTemplatesView from '../views/form/FormTemplatesView.vue'
-import FormVersionsView from '../views/form/FormVersionsView.vue'
-import FormDesignerView from '../views/form/FormDesignerView.vue'
-import FormFieldRulesView from '../views/form/FormFieldRulesView.vue'
-import ReportWorkflowEfficiencyView from '../views/report/ReportWorkflowEfficiencyView.vue'
-import ReportTodosView from '../views/report/ReportTodosView.vue'
-import ReportLeavesView from '../views/report/ReportLeavesView.vue'
-import ReportExpensesView from '../views/report/ReportExpensesView.vue'
-import ReportContractsView from '../views/report/ReportContractsView.vue'
-import ReportAssetsView from '../views/report/ReportAssetsView.vue'
-import ReportUsersView from '../views/report/ReportUsersView.vue'
-import ContractListView from '../views/contract/ContractListView.vue'
-import ContractDetailView from '../views/contract/ContractDetailView.vue'
-import ContractFormView from '../views/contract/ContractFormView.vue'
-import NoticeListView from '../views/notice/NoticeListView.vue'
-import NoticeDetailView from '../views/notice/NoticeDetailView.vue'
-import NoticeFormView from '../views/notice/NoticeFormView.vue'
-import MeetingRoomListView from '../views/meeting/MeetingRoomListView.vue'
-import MeetingBookingListView from '../views/meeting/MeetingBookingListView.vue'
-import AssetListView from '../views/asset/AssetListView.vue'
-import AssetDetailView from '../views/asset/AssetDetailView.vue'
-import SupplyListView from '../views/supply/SupplyListView.vue'
-import SupplyRecordsView from '../views/supply/SupplyRecordsView.vue'
-import MessageListView from '../views/message/MessageListView.vue'
-import NotificationSettingsView from '../views/message/NotificationSettingsView.vue'
-import FileLibraryView from '../views/file/FileLibraryView.vue'
-import OrgDeptView from '../views/org/OrgDeptView.vue'
-import OrgUserView from '../views/org/OrgUserView.vue'
-import PermissionRoleView from '../views/permission/PermissionRoleView.vue'
-import PermissionMenuView from '../views/permission/PermissionMenuView.vue'
-import PermissionButtonView from '../views/permission/PermissionButtonView.vue'
-import PermissionTempAuthView from '../views/permission/PermissionTempAuthView.vue'
-import PermissionPreviewView from '../views/permission/PermissionPreviewView.vue'
-import RuleListView from '../views/rule/RuleListView.vue'
-import RuleDetailView from '../views/rule/RuleDetailView.vue'
-import RuleSimulatorView from '../views/rule/RuleSimulatorView.vue'
-import AuditLoginLogsView from '../views/audit/AuditLoginLogsView.vue'
-import AuditOperationLogsView from '../views/audit/AuditOperationLogsView.vue'
-import AuditPermissionLogsView from '../views/audit/AuditPermissionLogsView.vue'
-import AuditRuleLogsView from '../views/audit/AuditRuleLogsView.vue'
-import AuditFileDownloadLogsView from '../views/audit/AuditFileDownloadLogsView.vue'
-import FileDetailView from '../views/file/FileDetailView.vue'
-import FileRecycleBinView from '../views/file/FileRecycleBinView.vue'
-import OpsHealthView from '../views/ops/OpsHealthView.vue'
-import OpsOnlineUsersView from '../views/ops/OpsOnlineUsersView.vue'
-import OpsJobLogsView from '../views/ops/OpsJobLogsView.vue'
-import OpsExceptionsView from '../views/ops/OpsExceptionsView.vue'
-import OpsBackupsView from '../views/ops/OpsBackupsView.vue'
-import AccountProfileView from '../views/account/AccountProfileView.vue'
-import AccountChangePasswordView from '../views/account/AccountChangePasswordView.vue'
-import OrgPositionView from '../views/org/OrgPositionView.vue'
-import OrgRankView from '../views/org/OrgRankView.vue'
-import OrgContactsView from '../views/org/OrgContactsView.vue'
-import OrgChangeLogsView from '../views/org/OrgChangeLogsView.vue'
-import PermissionDataScopeView from '../views/permission/PermissionDataScopeView.vue'
-import PermissionFieldPermView from '../views/permission/PermissionFieldPermView.vue'
-import DelegationListView from '../views/workflow/DelegationListView.vue'
-import TwoFactorSetupView from '../views/auth/TwoFactorSetupView.vue'
-import WorkflowTemplateDesignerView from '../views/workflow/WorkflowTemplateDesignerView.vue'
-import WorkflowTemplateVersionsView from '../views/workflow/WorkflowTemplateVersionsView.vue'
-import RuleGroupsView from '../views/rule/RuleGroupsView.vue'
-import RuleEditView from '../views/rule/RuleEditView.vue'
-import RuleVersionsView from '../views/rule/RuleVersionsView.vue'
-import LeaveReportView from '../views/oa/leaves/LeaveReportView.vue'
-import TeamCalendarView from '../views/oa/leaves/TeamCalendarView.vue'
-import ExpenseFinanceReviewView from '../views/oa/expenses/ExpenseFinanceReviewView.vue'
-import ExpenseReportView from '../views/oa/expenses/ExpenseReportView.vue'
-import SealLedgerView from '../views/oa/seals/SealLedgerView.vue'
-import SealReturnsView from '../views/oa/seals/SealReturnsView.vue'
-import PurchaseArrivalView from '../views/oa/purchases/PurchaseArrivalView.vue'
-import PurchaseAcceptanceView from '../views/oa/purchases/PurchaseAcceptanceView.vue'
-import ContractArchiveView from '../views/contract/ContractArchiveView.vue'
-import ContractExpiryView from '../views/contract/ContractExpiryView.vue'
-import ContractReportView from '../views/contract/ContractReportView.vue'
-import ForceChangePasswordView from '../views/auth/ForceChangePasswordView.vue'
+
+// 懒加载 - 只在访问时才加载
+const LoginView = () => import('../views/login/LoginView.vue')
+const DashboardView = () => import('../views/dashboard/DashboardView.vue')
+const ForceChangePasswordView = () => import('../views/auth/ForceChangePasswordView.vue')
+const TwoFactorSetupView = () => import('../views/auth/TwoFactorSetupView.vue')
+
+// OA 模块
+const LeaveListView = () => import('../views/oa/leaves/LeaveListView.vue')
+const LeaveDetailView = () => import('../views/oa/leaves/LeaveDetailView.vue')
+const LeaveFormView = () => import('../views/oa/leaves/LeaveFormView.vue')
+const LeaveReportView = () => import('../views/oa/leaves/LeaveReportView.vue')
+const TeamCalendarView = () => import('../views/oa/leaves/TeamCalendarView.vue')
+
+const ExpenseListView = () => import('../views/oa/expenses/ExpenseListView.vue')
+const ExpenseDetailView = () => import('../views/oa/expenses/ExpenseDetailView.vue')
+const ExpenseFormView = () => import('../views/oa/expenses/ExpenseFormView.vue')
+const ExpenseFinanceReviewView = () => import('../views/oa/expenses/ExpenseFinanceReviewView.vue')
+const ExpenseReportView = () => import('../views/oa/expenses/ExpenseReportView.vue')
+
+const SealListView = () => import('../views/oa/seals/SealListView.vue')
+const SealDetailView = () => import('../views/oa/seals/SealDetailView.vue')
+const SealFormView = () => import('../views/oa/seals/SealFormView.vue')
+const SealLedgerView = () => import('../views/oa/seals/SealLedgerView.vue')
+const SealReturnsView = () => import('../views/oa/seals/SealReturnsView.vue')
+
+const PurchaseListView = () => import('../views/oa/purchases/PurchaseListView.vue')
+const PurchaseDetailView = () => import('../views/oa/purchases/PurchaseDetailView.vue')
+const PurchaseFormView = () => import('../views/oa/purchases/PurchaseFormView.vue')
+const PurchaseArrivalView = () => import('../views/oa/purchases/PurchaseArrivalView.vue')
+const PurchaseAcceptanceView = () => import('../views/oa/purchases/PurchaseAcceptanceView.vue')
+
+// 合同模块
+const ContractListView = () => import('../views/contract/ContractListView.vue')
+const ContractDetailView = () => import('../views/contract/ContractDetailView.vue')
+const ContractFormView = () => import('../views/contract/ContractFormView.vue')
+const ContractArchiveView = () => import('../views/contract/ContractArchiveView.vue')
+const ContractExpiryView = () => import('../views/contract/ContractExpiryView.vue')
+const ContractReportView = () => import('../views/contract/ContractReportView.vue')
+
+// 公告模块
+const NoticeListView = () => import('../views/notice/NoticeListView.vue')
+const NoticeDetailView = () => import('../views/notice/NoticeDetailView.vue')
+const NoticeFormView = () => import('../views/notice/NoticeFormView.vue')
+
+// 工作流模块
+const TodoListView = () => import('../views/workflow/TodoListView.vue')
+const TodoDoneView = () => import('../views/workflow/TodoDoneView.vue')
+const ApplicationListView = () => import('../views/workflow/ApplicationListView.vue')
+const CcListView = () => import('../views/workflow/CcListView.vue')
+const WorkflowTemplatesView = () => import('../views/workflow/WorkflowTemplatesView.vue')
+const WorkflowInstancesView = () => import('../views/workflow/WorkflowInstancesView.vue')
+const WorkflowExceptionsView = () => import('../views/workflow/WorkflowExceptionsView.vue')
+const WorkflowSimulatorView = () => import('../views/workflow/WorkflowSimulatorView.vue')
+const DelegationListView = () => import('../views/workflow/DelegationListView.vue')
+const WorkflowTemplateDesignerView = () => import('../views/workflow/WorkflowTemplateDesignerView.vue')
+const WorkflowTemplateVersionsView = () => import('../views/workflow/WorkflowTemplateVersionsView.vue')
+
+// 消息模块
+const MessageListView = () => import('../views/message/MessageListView.vue')
+const NotificationSettingsView = () => import('../views/message/NotificationSettingsView.vue')
+
+// 系统模块
+const SystemConfigsView = () => import('../views/system/SystemConfigsView.vue')
+const SystemDictsView = () => import('../views/system/SystemDictsView.vue')
+const SystemNumberRulesView = () => import('../views/system/SystemNumberRulesView.vue')
+const SystemWorkCalendarView = () => import('../views/system/SystemWorkCalendarView.vue')
+const SystemImportExportView = () => import('../views/system/SystemImportExportView.vue')
+
+// 表单模块
+const FormTemplatesView = () => import('../views/form/FormTemplatesView.vue')
+const FormVersionsView = () => import('../views/form/FormVersionsView.vue')
+const FormDesignerView = () => import('../views/form/FormDesignerView.vue')
+const FormFieldRulesView = () => import('../views/form/FormFieldRulesView.vue')
+
+// 报表模块
+const ReportWorkflowEfficiencyView = () => import('../views/report/ReportWorkflowEfficiencyView.vue')
+const ReportTodosView = () => import('../views/report/ReportTodosView.vue')
+const ReportLeavesView = () => import('../views/report/ReportLeavesView.vue')
+const ReportExpensesView = () => import('../views/report/ReportExpensesView.vue')
+const ReportContractsView = () => import('../views/report/ReportContractsView.vue')
+const ReportAssetsView = () => import('../views/report/ReportAssetsView.vue')
+const ReportUsersView = () => import('../views/report/ReportUsersView.vue')
+
+// 组织模块
+const OrgDeptView = () => import('../views/org/OrgDeptView.vue')
+const OrgUserView = () => import('../views/org/OrgUserView.vue')
+const OrgPositionView = () => import('../views/org/OrgPositionView.vue')
+const OrgRankView = () => import('../views/org/OrgRankView.vue')
+const OrgContactsView = () => import('../views/org/OrgContactsView.vue')
+const OrgChangeLogsView = () => import('../views/org/OrgChangeLogsView.vue')
+
+// 权限模块
+const PermissionRoleView = () => import('../views/permission/PermissionRoleView.vue')
+const PermissionMenuView = () => import('../views/permission/PermissionMenuView.vue')
+const PermissionButtonView = () => import('../views/permission/PermissionButtonView.vue')
+const PermissionTempAuthView = () => import('../views/permission/PermissionTempAuthView.vue')
+const PermissionPreviewView = () => import('../views/permission/PermissionPreviewView.vue')
+const PermissionDataScopeView = () => import('../views/permission/PermissionDataScopeView.vue')
+const PermissionFieldPermView = () => import('../views/permission/PermissionFieldPermView.vue')
+
+// 规则模块
+const RuleListView = () => import('../views/rule/RuleListView.vue')
+const RuleDetailView = () => import('../views/rule/RuleDetailView.vue')
+const RuleSimulatorView = () => import('../views/rule/RuleSimulatorView.vue')
+const RuleGroupsView = () => import('../views/rule/RuleGroupsView.vue')
+const RuleEditView = () => import('../views/rule/RuleEditView.vue')
+const RuleVersionsView = () => import('../views/rule/RuleVersionsView.vue')
+
+// 审计模块
+const AuditLoginLogsView = () => import('../views/audit/AuditLoginLogsView.vue')
+const AuditOperationLogsView = () => import('../views/audit/AuditOperationLogsView.vue')
+const AuditPermissionLogsView = () => import('../views/audit/AuditPermissionLogsView.vue')
+const AuditRuleLogsView = () => import('../views/audit/AuditRuleLogsView.vue')
+const AuditFileDownloadLogsView = () => import('../views/audit/AuditFileDownloadLogsView.vue')
+
+// 文件模块
+const FileLibraryView = () => import('../views/file/FileLibraryView.vue')
+const FileDetailView = () => import('../views/file/FileDetailView.vue')
+const FileRecycleBinView = () => import('../views/file/FileRecycleBinView.vue')
+
+// 运维模块
+const OpsHealthView = () => import('../views/ops/OpsHealthView.vue')
+const OpsOnlineUsersView = () => import('../views/ops/OpsOnlineUsersView.vue')
+const OpsJobLogsView = () => import('../views/ops/OpsJobLogsView.vue')
+const OpsExceptionsView = () => import('../views/ops/OpsExceptionsView.vue')
+const OpsBackupsView = () => import('../views/ops/OpsBackupsView.vue')
+
+// 账户模块
+const AccountProfileView = () => import('../views/account/AccountProfileView.vue')
+const AccountChangePasswordView = () => import('../views/account/AccountChangePasswordView.vue')
+
+// 会议模块
+const MeetingRoomListView = () => import('../views/meeting/MeetingRoomListView.vue')
+const MeetingBookingListView = () => import('../views/meeting/MeetingBookingListView.vue')
+
+// 资产模块
+const AssetListView = () => import('../views/asset/AssetListView.vue')
+const AssetDetailView = () => import('../views/asset/AssetDetailView.vue')
+
+// 用品模块
+const SupplyListView = () => import('../views/supply/SupplyListView.vue')
+const SupplyRecordsView = () => import('../views/supply/SupplyRecordsView.vue')
 
 const oaRoutes: RouteRecordRaw[] = [
   { path: 'oa/leaves/create', name: 'leave-create', component: LeaveFormView, meta: { title: '新建请假', module: 'oa' } },
