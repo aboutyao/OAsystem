@@ -1,7 +1,16 @@
 FROM node:20-alpine AS build
 WORKDIR /app
+
+# 使用缓存卷保存 npm 依赖
+RUN --mount=type=cache,target=/root/.npm \
+    echo "npm cache mounted"
+
 COPY package*.json ./
-RUN npm install
+
+# 依赖层 - 只在 package.json 变化时重新构建
+RUN --mount=type=cache,target=/root/.npm \
+    npm install
+
 COPY . .
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
