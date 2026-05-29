@@ -60,12 +60,10 @@ http.interceptors.response.use(
 
     const status = error.response.status
 
-    if (status === 401) {
+    if (status === 401 || status === 403) {
       localStorage.removeItem('oa_access_token')
       localStorage.removeItem('oa_user')
       window.location.href = '/login'
-    } else if (status === 403) {
-      ElMessage.error('无权限执行此操作')
     } else if (status === 409) {
       ElMessage.warning('重复请求，请勿重复提交')
     } else if (status === 429) {
