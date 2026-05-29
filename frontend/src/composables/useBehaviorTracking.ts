@@ -1,5 +1,4 @@
 import { ref, onMounted } from 'vue'
-import { http } from '../api/http'
 
 interface UserAction {
   path: string
@@ -58,22 +57,13 @@ export function useBehaviorTracking() {
     }
   }
 
-  // 后端追踪（更精确）
-  async function loadProfile() {
-    loading.value = true
-    try {
-      const data = await http.get('/dashboard/behavior-profile') as BehaviorProfile
-      profile.value = data
-    } catch {
-      // 降级到本地数据
-      profile.value = {
-        topActions: getLocalProfile(),
-        peakHours: [],
-        avgSessionMinutes: 0,
-        常用模块: [],
-      }
-    } finally {
-      loading.value = false
+  // 本地追踪为主，暂不依赖后端
+  function loadProfile() {
+    profile.value = {
+      topActions: getLocalProfile(),
+      peakHours: [],
+      avgSessionMinutes: 0,
+      常用模块: [],
     }
   }
 
