@@ -364,6 +364,28 @@ const moduleRoutes: RouteRecordRaw[] = [
   { path: 'ops/job-logs', name: 'ops-job-logs', component: OpsJobLogsView, meta: { title: '任务日志', module: 'ops' } },
   { path: 'ops/exceptions', name: 'ops-exceptions', component: OpsExceptionsView, meta: { title: '异常中心', module: 'ops' } },
   { path: 'ops/backups', name: 'ops-backups', component: OpsBackupsView, meta: { title: '备份记录', module: 'ops' } },
+
+  // ==================== 智能功能模块 ====================
+  { path: 'smart/approval', name: 'smart-approval', component: () => import('../components/SmartApprovalPanel.vue'), meta: { title: '智能审批', module: 'smart' } },
+  { path: 'smart/anomaly', name: 'smart-anomaly', component: () => import('../components/AnomalyAlert.vue'), meta: { title: '异常检测', module: 'smart' } },
+  { path: 'smart/workload', name: 'smart-workload', component: () => import('../components/WorkloadAnalysis.vue'), meta: { title: '工作负荷', module: 'smart' } },
+  { path: 'smart/health', name: 'smart-health', component: () => import('../components/DepartmentHealthDashboard.vue'), meta: { title: '部门健康度', module: 'smart' } },
+  { path: 'smart/cost', name: 'smart-cost', component: () => import('../components/CostPredictionChart.vue'), meta: { title: '成本预测', module: 'smart' } },
+  { path: 'smart/reminder', name: 'smart-reminder', component: () => import('../components/SmartReminderPanel.vue'), meta: { title: '智能催办', module: 'smart' } },
+  { path: 'smart/schedule', name: 'smart-schedule', component: () => import('../components/SmartScheduler.vue'), meta: { title: '智能日程', module: 'smart' } },
+  { path: 'smart/knowledge', name: 'smart-knowledge', component: () => import('../components/KnowledgeGraphViewer.vue'), meta: { title: '知识图谱', module: 'smart' } },
+  { path: 'smart/contract-risk', name: 'smart-contract-risk', component: () => import('../components/ContractRiskAlert.vue'), meta: { title: '合同风险', module: 'smart' } },
+  { path: 'smart/template-market', name: 'smart-template-market', component: () => import('../components/TemplateMarket.vue'), meta: { title: '模板市场', module: 'smart' } },
+  { path: 'smart/plugins', name: 'smart-plugins', component: () => import('../components/PluginManager.vue'), meta: { title: '插件管理', module: 'smart' } },
+  { path: 'smart/webhooks', name: 'smart-webhooks', component: () => import('../components/WebhookManager.vue'), meta: { title: 'Webhook管理', module: 'smart' } },
+  { path: 'smart/scheduler', name: 'smart-scheduler', component: () => import('../components/ScheduledTaskManager.vue'), meta: { title: '定时任务', module: 'smart' } },
+  { path: 'smart/open-api', name: 'smart-open-api', component: () => import('../components/OpenApiManager.vue'), meta: { title: 'API开放平台', module: 'smart' } },
+  { path: 'smart/theme', name: 'smart-theme', component: () => import('../components/ThemeCustomizer.vue'), meta: { title: '主题定制', module: 'smart' } },
+  { path: 'smart/dashboard-config', name: 'smart-dashboard-config', component: () => import('../components/PersonalDashboardConfig.vue'), meta: { title: '仪表盘配置', module: 'smart' } },
+  { path: 'smart/accessibility', name: 'smart-accessibility', component: () => import('../components/AccessibilitySettings.vue'), meta: { title: '无障碍设置', module: 'smart' } },
+  { path: 'smart/notifications', name: 'smart-notifications', component: () => import('../components/NotificationSettings.vue'), meta: { title: '通知设置', module: 'smart' } },
+  { path: 'smart/operation-replay', name: 'smart-operation-replay', component: () => import('../components/OperationReplay.vue'), meta: { title: '操作回放', module: 'smart' } },
+  { path: 'smart/data-lifecycle', name: 'smart-data-lifecycle', component: () => import('../components/DataLifecycleStats.vue'), meta: { title: '数据统计', module: 'smart' } },
 ]
 
 export const router = createRouter({
