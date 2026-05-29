@@ -42,7 +42,8 @@ full)
     docker compose down --remove-orphans 2>/dev/null || true
 
     echo "[3/4] 构建镜像并启动所有服务..."
-    docker compose up -d --build
+    docker compose build --no-cache
+    docker compose up -d
 
     echo "[4/4] 等待所有服务就绪..."
     sleep 15
@@ -53,7 +54,8 @@ full)
 # ============================================================
 init)
     echo "[1/2] 构建镜像并启动所有服务..."
-    docker compose up -d --build
+    docker compose build --no-cache
+    docker compose up -d
 
     echo "[2/2] 等待所有服务就绪..."
     sleep 15
@@ -66,9 +68,10 @@ update)
     echo "[1/3] 停止应用服务..."
     docker compose stop backend frontend
 
-    echo "[2/3] 删除旧容器并重建..."
+    echo "[2/3] 删除旧容器并强制重建（无缓存）..."
     docker compose rm -f backend frontend
-    docker compose up -d --build backend frontend
+    docker compose build --no-cache backend frontend
+    docker compose up -d backend frontend
 
     echo "[3/3] 等待后端启动..."
     sleep 10
@@ -81,9 +84,10 @@ backend)
     echo "[1/3] 停止后端..."
     docker compose stop backend
 
-    echo "[2/3] 删除旧容器并重建..."
+    echo "[2/3] 删除旧容器并强制重建（无缓存）..."
     docker compose rm -f backend
-    docker compose up -d --build backend
+    docker compose build --no-cache backend
+    docker compose up -d backend
 
     echo "[3/3] 等待后端启动..."
     sleep 10
@@ -96,9 +100,10 @@ frontend)
     echo "[1/3] 停止前端..."
     docker compose stop frontend
 
-    echo "[2/3] 删除旧容器并重建..."
+    echo "[2/3] 删除旧容器并强制重建（无缓存）..."
     docker compose rm -f frontend
-    docker compose up -d --build frontend
+    docker compose build --no-cache frontend
+    docker compose up -d frontend
 
     echo "[3/3] 等待前端启动..."
     sleep 5
