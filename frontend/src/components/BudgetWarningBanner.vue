@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Warning, TrendCharts } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 import { getBudgetWarnings, type BudgetWarning } from '../api/budgets'
 
 const warnings = ref<BudgetWarning[]>([])

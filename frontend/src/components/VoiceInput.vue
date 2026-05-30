@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Microphone, Loading } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
   result: [text: string]
@@ -70,7 +70,7 @@ onUnmounted(() => {
   <div class="voice-input">
     <el-button
       :type="isRecording ? 'danger' : 'primary'"
-      :icon="isRecording ? Loading : Microphone"
+      :icon="isRecording ? Refresh : Document"
       :loading="isRecording"
       @click="isRecording ? stopRecording() : startRecording()"
     >

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElTag } from 'element-plus'
-import { User, Warning } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface WorkloadItem {
   userId: number

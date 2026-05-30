@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, VideoPlay, VideoPause, Refresh } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface ScheduledTask {
   id: number
@@ -127,7 +127,7 @@ onMounted(loadTasks)
           <el-button
             :type="row.status === 'ACTIVE' ? 'warning' : 'success'"
             link
-            :icon="row.status === 'ACTIVE' ? VideoPause : VideoPlay"
+            :icon="row.status === 'ACTIVE' ? Document : View"
             @click="toggleTask(row)"
           >{{ row.status === 'ACTIVE' ? '暂停' : '启用' }}</el-button>
           <el-button type="primary" link :icon="Refresh" @click="executeTask(row)">执行</el-button>

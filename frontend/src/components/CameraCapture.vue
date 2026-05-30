@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Camera, Refresh, Check } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Select } from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
   capture: [file: File]
@@ -90,13 +90,13 @@ onUnmounted(() => {
 
     <div class="camera-actions">
       <template v-if="!capturedImage">
-        <el-button type="primary" :icon="Camera" :loading="isCapturing" @click="capture">
+        <el-button type="primary" :icon="View" :loading="isCapturing" @click="capture">
           拍照
         </el-button>
       </template>
       <template v-else>
         <el-button :icon="Refresh" @click="retake">重拍</el-button>
-        <el-button type="success" :icon="Check" @click="confirm">确认</el-button>
+        <el-button type="success" :icon="Select" @click="confirm">确认</el-button>
       </template>
     </div>
   </div>

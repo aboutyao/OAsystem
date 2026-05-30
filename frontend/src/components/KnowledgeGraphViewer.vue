@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Share, Search } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface Relation {
   type: string
@@ -78,7 +78,7 @@ onMounted(loadRelations)
 <template>
   <div class="knowledge-graph-viewer">
     <div class="viewer-header">
-      <el-icon><Share /></el-icon>
+      <el-icon><Document /></el-icon>
       <span>关联图谱</span>
     </div>
 
@@ -87,7 +87,7 @@ onMounted(loadRelations)
       <el-input
         v-model="searchKeyword"
         placeholder="搜索关联实体..."
-        :prefix-icon="Search"
+        :prefix-icon="View"
         clearable
         @input="searchEntities"
       />

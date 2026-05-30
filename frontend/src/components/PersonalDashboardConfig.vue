@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Setting, Rank, View, Hide } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface DashboardModule {
   key: string
@@ -94,7 +94,7 @@ onMounted(loadConfig)
   <div class="personal-dashboard-config">
     <div class="config-header">
       <h3>个性化仪表盘</h3>
-      <el-button v-if="!isEditing" type="primary" :icon="Setting" @click="isEditing = true">自定义</el-button>
+      <el-button v-if="!isEditing" type="primary" :icon="Document" @click="isEditing = true">自定义</el-button>
       <template v-else>
         <el-button @click="isEditing = false">取消</el-button>
         <el-button type="primary" @click="saveConfig">保存</el-button>
@@ -114,7 +114,7 @@ onMounted(loadConfig)
         </div>
 
         <div v-if="isEditing" class="module-actions">
-          <el-button text :icon="module.visible ? View : Hide" @click="toggleVisibility(module)" />
+          <el-button text :icon="View" @click="toggleVisibility(module)" />
           <el-button text :disabled="index === 0" @click="moveUp(index)">↑</el-button>
           <el-button text :disabled="index === modules.length - 1" @click="moveDown(index)">↓</el-button>
         </div>

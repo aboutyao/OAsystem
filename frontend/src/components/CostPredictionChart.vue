@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { TrendCharts, DataAnalysis } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 const loading = ref(false)
 const prediction = ref<any>(null)
@@ -45,7 +45,7 @@ onMounted(loadPrediction)
 <template>
   <div class="cost-prediction-chart" v-loading="loading">
     <div class="chart-header">
-      <el-icon><TrendCharts /></el-icon>
+      <el-icon><Document /></el-icon>
       <span>成本预测</span>
     </div>
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Bell, Setting } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface NotificationSetting {
   type: string
@@ -68,7 +68,7 @@ onMounted(loadSettings)
     <div v-loading="loading" class="settings-list">
       <div v-for="setting in settings" :key="setting.type" class="setting-item">
         <div class="setting-info">
-          <el-icon><Bell /></el-icon>
+          <el-icon><Warning /></el-icon>
           <span>{{ setting.name }}</span>
         </div>
         <el-switch v-model="setting.enabled" />

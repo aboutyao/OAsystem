@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CircleCheck, WarningFilled } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface ComplianceViolation {
   type: string
@@ -57,8 +57,8 @@ function getViolationTypeLabel(type: string): string {
 
     <div v-if="result" class="check-result" :class="{ 'is-passed': result.passed, 'is-failed': !result.passed }">
       <div class="result-icon">
-        <el-icon v-if="result.passed" :size="24" color="#67C23A"><CircleCheck /></el-icon>
-        <el-icon v-else :size="24" color="#F56C6C"><WarningFilled /></el-icon>
+        <el-icon v-if="result.passed" :size="24" color="#67C23A"><Select /></el-icon>
+        <el-icon v-else :size="24" color="#F56C6C"><Warning /></el-icon>
       </div>
       <div class="result-text">
         {{ result.passed ? '合规检查通过' : '存在合规问题' }}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Connection, Refresh, Warning } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Refresh } from '@element-plus/icons-vue'
 
 const isOnline = ref(navigator.onLine)
 const syncStatus = ref({ pendingCount: 0, syncedCount: 0, failedCount: 0 })
@@ -62,7 +62,7 @@ onUnmounted(() => {
 <template>
   <div class="offline-sync-status" :class="{ 'is-offline': !isOnline }">
     <div class="status-indicator">
-      <el-icon v-if="isOnline" color="#67C23A"><Connection /></el-icon>
+      <el-icon v-if="isOnline" color="#67C23A"><Document /></el-icon>
       <el-icon v-else color="#F56C6C"><Warning /></el-icon>
       <span>{{ isOnline ? '在线' : '离线' }}</span>
     </div>

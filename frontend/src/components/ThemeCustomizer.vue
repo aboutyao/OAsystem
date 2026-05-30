@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Brush, Check } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface ThemeConfig {
   primary: string
@@ -80,7 +80,7 @@ onMounted(loadConfig)
   <div class="theme-customizer">
     <div class="customizer-header">
       <h3>主题定制</h3>
-      <el-button v-if="!isEditing" type="primary" :icon="Brush" @click="isEditing = true">自定义</el-button>
+      <el-button v-if="!isEditing" type="primary" :icon="Document" @click="isEditing = true">自定义</el-button>
       <template v-else>
         <el-button @click="isEditing = false">取消</el-button>
         <el-button type="primary" @click="saveConfig">保存</el-button>
@@ -101,7 +101,7 @@ onMounted(loadConfig)
           >
             <div class="theme-color" :style="{ backgroundColor: preset.primary }"></div>
             <span class="theme-name">{{ preset.name }}</span>
-            <el-icon v-if="config.primary === preset.primary" class="check-icon"><Check /></el-icon>
+            <el-icon v-if="config.primary === preset.primary" class="check-icon"><Select /></el-icon>
           </div>
         </div>
       </div>

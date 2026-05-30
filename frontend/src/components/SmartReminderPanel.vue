@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Bell, Timer, Message } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Clock } from '@element-plus/icons-vue'
 
 interface ReminderAnalysis {
   taskId: number
@@ -46,9 +46,9 @@ async function sendReminder() {
 
 function getMethodIcon(method: string) {
   switch (method) {
-    case '即时消息': return Message
-    case '邮件': return Message
-    default: return Message
+    case '即时消息': return Document
+    case '邮件': return Document
+    default: return Document
   }
 }
 
@@ -58,13 +58,13 @@ onMounted(analyzeReminder)
 <template>
   <div class="smart-reminder-panel" v-loading="loading">
     <div class="panel-header">
-      <el-icon><Bell /></el-icon>
+      <el-icon><Warning /></el-icon>
       <span>智能催办</span>
     </div>
 
     <div v-if="analysis" class="analysis-content">
       <div class="analysis-item">
-        <el-icon><Timer /></el-icon>
+        <el-icon><Clock /></el-icon>
         <div class="item-info">
           <div class="item-label">最佳催办时间</div>
           <div class="item-value">{{ analysis.bestReminderTime }}</div>
@@ -72,7 +72,7 @@ onMounted(analyzeReminder)
       </div>
 
       <div class="analysis-item">
-        <el-icon><Message /></el-icon>
+        <el-icon><Document /></el-icon>
         <div class="item-info">
           <div class="item-label">推荐催办方式</div>
           <div class="item-value">{{ analysis.recommendMethod }}</div>
@@ -80,7 +80,7 @@ onMounted(analyzeReminder)
       </div>
 
       <div class="analysis-item">
-        <el-icon><Timer /></el-icon>
+        <el-icon><Clock /></el-icon>
         <div class="item-info">
           <div class="item-label">平均响应时间</div>
           <div class="item-value">{{ analysis.pattern.avgResponseHours?.toFixed(1) || '-' }} 小时</div>
@@ -88,7 +88,7 @@ onMounted(analyzeReminder)
       </div>
 
       <div class="analysis-item">
-        <el-icon><Bell /></el-icon>
+        <el-icon><Warning /></el-icon>
         <div class="item-info">
           <div class="item-label">当前待办数</div>
           <div class="item-value">{{ analysis.pattern.pendingCount }}</div>

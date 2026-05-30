@@ -22,6 +22,16 @@ const LEAVE_TYPE_MAP: Record<string, string> = {
   '调休': 'PERSONAL',
 }
 
+const form = reactive({
+  leaveType: '事假',
+  startAt: '',
+  endAt: '',
+  durationHours: 0,
+  durationDays: 0,
+  reason: '',
+  handoverNote: '',
+})
+
 const currentBalance = computed(() => {
   const code = LEAVE_TYPE_MAP[form.leaveType] || form.leaveType
   return balances.value.find(b => b.leaveType === code)
@@ -73,16 +83,6 @@ onUnmounted(() => {
 
 const isEdit = computed(() => route.name === 'leave-edit')
 const id = computed(() => (isEdit.value ? Number(route.params.id) : 0))
-
-const form = reactive({
-  leaveType: '事假',
-  startAt: '',
-  endAt: '',
-  durationHours: 0,
-  durationDays: 0,
-  reason: '',
-  handoverNote: '',
-})
 
 async function syncDuration() {
   if (!form.startAt || !form.endAt) return

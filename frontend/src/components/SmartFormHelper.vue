@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { MagicStick, User, Document } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface SupplierSuggestion {
   name: string
@@ -68,7 +68,7 @@ watch(keyword, () => {
 <template>
   <div class="smart-form-helper">
     <div class="helper-header">
-      <el-icon><MagicStick /></el-icon>
+      <el-icon><Warning /></el-icon>
       <span>智能推荐</span>
     </div>
 
@@ -94,7 +94,7 @@ watch(keyword, () => {
           class="suggestion-item"
           @click="selectItem(item.name)"
         >
-          <el-icon><User /></el-icon>
+          <el-icon><Document /></el-icon>
           <span class="item-name">{{ item.name }}</span>
           <span class="item-count">使用 {{ item.usageCount }} 次</span>
         </div>

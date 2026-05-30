@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { TrendCharts, User, Timer } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Clock } from '@element-plus/icons-vue'
 
 interface SmartApprover {
   userId: number
@@ -61,7 +61,7 @@ onMounted(loadRecommendations)
 <template>
   <div class="smart-approval-panel" v-loading="loading">
     <div class="panel-header">
-      <el-icon><TrendCharts /></el-icon>
+      <el-icon><Document /></el-icon>
       <span>智能推荐审批人</span>
     </div>
 
@@ -85,11 +85,11 @@ onMounted(loadRecommendations)
           <div class="approver-name">{{ approver.userName }}</div>
           <div class="approver-metrics">
             <span class="metric">
-              <el-icon><Timer /></el-icon>
+              <el-icon><Clock /></el-icon>
               平均 {{ approver.avgResponseHours.toFixed(1) }}h
             </span>
             <span class="metric">
-              <el-icon><User /></el-icon>
+              <el-icon><Document /></el-icon>
               待办 {{ approver.currentWorkload }}
             </span>
           </div>

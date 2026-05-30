@@ -159,9 +159,9 @@ defineExpose({ open })
     <template #header>
       <div style="display: flex; align-items: center; justify-content: space-between; width: 100%">
         <div style="display: flex; align-items: center; gap: 12px">
-          <el-button :icon="ArrowLeft" text @click="prevMonth" />
+          <el-button :icon="Document" text @click="prevMonth" />
           <span style="font-weight: 600; font-size: 16px; min-width: 100px; text-align: center">{{ monthLabel }}</span>
-          <el-button :icon="ArrowRight" text @click="nextMonth" />
+          <el-button :icon="Document" text @click="nextMonth" />
         </div>
         <el-button size="small" @click="goToday">今天</el-button>
       </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Check, Close, Setting } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Select } from '@element-plus/icons-vue'
 
 interface Plugin {
   id: number
@@ -74,14 +74,14 @@ onMounted(loadPlugins)
             v-if="row.status !== 'ENABLED'"
             type="success"
             link
-            :icon="Check"
+            :icon="Select"
             @click="togglePlugin(row)"
           >启用</el-button>
           <el-button
             v-else
             type="warning"
             link
-            :icon="Close"
+            :icon="Delete"
             @click="togglePlugin(row)"
           >禁用</el-button>
         </template>

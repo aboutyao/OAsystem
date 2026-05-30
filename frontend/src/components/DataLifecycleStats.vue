@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElStatistic } from 'element-plus'
-import { Database, Document, User, Money } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Money } from '@element-plus/icons-vue'
 
 const loading = ref(false)
 const stats = ref<Record<string, number>>({})
@@ -32,13 +32,13 @@ onMounted(loadStats)
 <template>
   <div class="data-lifecycle-stats" v-loading="loading">
     <div class="stats-header">
-      <el-icon><Database /></el-icon>
+      <el-icon><Document /></el-icon>
       <span>数据统计</span>
     </div>
 
     <div class="stats-grid">
       <div class="stat-card">
-        <el-icon :size="20" color="#409EFF"><User /></el-icon>
+        <el-icon :size="20" color="#409EFF"><Document /></el-icon>
         <div class="stat-info">
           <div class="stat-value">{{ formatNumber(stats.users || 0) }}</div>
           <div class="stat-label">用户数</div>

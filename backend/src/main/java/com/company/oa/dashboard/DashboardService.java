@@ -24,22 +24,19 @@ public class DashboardService {
     private final OaNoticeMapper oaNoticeMapper;
     private final AuthService authService;
     private final MessageService messageService;
-    private final com.company.oa.system.AnomalyDetectionService anomalyDetectionService;
 
     public DashboardService(WfTaskMapper wfTaskMapper,
                             WfProcessInstanceMapper wfProcessInstanceMapper,
                             WfCcRecordMapper wfCcRecordMapper,
                             OaNoticeMapper oaNoticeMapper,
                             AuthService authService,
-                            MessageService messageService,
-                            com.company.oa.system.AnomalyDetectionService anomalyDetectionService) {
+                            MessageService messageService) {
         this.wfTaskMapper = wfTaskMapper;
         this.wfProcessInstanceMapper = wfProcessInstanceMapper;
         this.wfCcRecordMapper = wfCcRecordMapper;
         this.oaNoticeMapper = oaNoticeMapper;
         this.authService = authService;
         this.messageService = messageService;
-        this.anomalyDetectionService = anomalyDetectionService;
     }
 
     @Transactional(readOnly = true)
@@ -142,9 +139,5 @@ public class DashboardService {
             return defaultValue;
         }
         return Math.min(limit, max);
-    }
-
-    public List<Map<String, Object>> detectAnomalies() {
-        return anomalyDetectionService.detectAnomalies();
     }
 }

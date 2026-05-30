@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElProgress } from 'element-plus'
-import { TrendCharts, Warning, CircleCheck } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Select } from '@element-plus/icons-vue'
 
 interface DepartmentHealth {
   deptId: number
@@ -38,7 +38,7 @@ function getHealthColor(score: number): string {
 }
 
 function getHealthIcon(score: number) {
-  if (score >= 80) return CircleCheck
+  if (score >= 80) return Select
   return Warning
 }
 

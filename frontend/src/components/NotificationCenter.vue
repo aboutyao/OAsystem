@@ -67,18 +67,18 @@ function groupLabel(key: string): string {
 
 function groupIcon(key: string): string {
   const icons: Record<string, string> = {
-    WORKFLOW: 'SetUp',
+    WORKFLOW: 'Document',
     LEAVE: 'Calendar',
-    EXPENSE: 'Wallet',
-    SEAL: 'Stamp',
-    PURCHASE: 'ShoppingCart',
+    EXPENSE: 'Document',
+    SEAL: 'Document',
+    PURCHASE: 'Document',
     CONTRACT: 'Document',
     MEETING: 'Calendar',
-    NOTICE: 'Bell',
-    FILE: 'FolderOpened',
-    SYSTEM: 'Setting',
+    NOTICE: 'Warning',
+    FILE: 'Document',
+    SYSTEM: 'Document',
   }
-  return icons[key] || 'ChatDotRound'
+  return icons[key] || 'Document'
 }
 
 function timeAgo(dateStr: string): string {

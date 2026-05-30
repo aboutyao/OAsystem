@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Upload, Download, Rollback } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Refresh } from '@element-plus/icons-vue'
 
 interface ProcessVersion {
   id: number
@@ -118,8 +118,8 @@ onMounted(loadVersions)
       </el-table-column>
       <el-table-column label="操作" width="180">
         <template #default="{ row }">
-          <el-button v-if="row.status !== 'ACTIVE'" type="success" link :icon="Upload" @click="publishVersion(row)">发布</el-button>
-          <el-button v-if="row.status !== 'ACTIVE'" type="warning" link :icon="Rollback" @click="rollbackVersion(row)">回滚</el-button>
+          <el-button v-if="row.status !== 'ACTIVE'" type="success" link :icon="UploadFilled" @click="publishVersion(row)">发布</el-button>
+          <el-button v-if="row.status !== 'ACTIVE'" type="warning" link :icon="Refresh" @click="rollbackVersion(row)">回滚</el-button>
         </template>
       </el-table-column>
     </el-table>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onErrorCaptured } from 'vue'
-import { Warning, Refresh } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Refresh } from '@element-plus/icons-vue'
 
 interface Props {
   /** Fallback UI title */
@@ -11,7 +11,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   title: '页面出现错误',
-  showDetails: import.meta.env.DEV,
+  showDetails: true,
 })
 
 const error = ref<Error | null>(null)

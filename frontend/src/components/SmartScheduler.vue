@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, Clock, Check } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Calendar, Clock, Select } from '@element-plus/icons-vue'
 
 interface TimeSlot {
   startTime: string
@@ -118,7 +118,7 @@ onMounted(loadRecommendations)
             {{ slot.score.toFixed(0) }}分
           </div>
         </div>
-        <el-icon class="slot-check"><Check /></el-icon>
+        <el-icon class="slot-check"><Select /></el-icon>
       </div>
     </div>
 

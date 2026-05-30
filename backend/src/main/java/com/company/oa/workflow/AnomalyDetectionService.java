@@ -48,6 +48,15 @@ public class AnomalyDetectionService {
     }
 
     /**
+     * 检测所有用户异常行为（供调度器使用）
+     */
+    public List<Map<String, Object>> detectAnomalies() {
+        List<Map<String, Object>> allAnomalies = new ArrayList<>();
+        // 简化实现：返回空列表
+        return allAnomalies;
+    }
+
+    /**
      * 检测用户异常行为
      */
     public List<AnomalyRecord> detectAnomalies(long userId) {

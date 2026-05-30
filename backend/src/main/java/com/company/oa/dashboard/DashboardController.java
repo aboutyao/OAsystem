@@ -53,10 +53,4 @@ public class DashboardController {
     public List<Map<String, Object>> quickActions() {
         return dashboardService.quickActions();
     }
-
-    @PreAuthorize("hasAnyAuthority('*', 'org:view')")
-    @GetMapping("/anomalies")
-    public List<Map<String, Object>> anomalies() {
-        return dashboardService.detectAnomalies();
-    }
 }

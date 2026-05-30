@@ -11,17 +11,17 @@ import java.util.Map;
 @Mapper
 public interface BudgetMapper extends BaseMapper<Budget> {
 
-    @Select("SELECT b.*, d.name as deptName " +
+    @Select("SELECT b.*, d.dept_name as deptName " +
             "FROM oa_budget b " +
-            "LEFT JOIN org_department d ON b.dept_id = d.id " +
+            "LEFT JOIN org_dept d ON b.dept_id = d.id " +
             "WHERE b.status = 'ACTIVE' AND b.deleted = 0 " +
             "AND (b.used_amount / b.budget_amount) >= (b.warning_threshold / 100) " +
             "ORDER BY (b.used_amount / b.budget_amount) DESC")
     List<Map<String, Object>> selectBudgetsNearLimit();
 
-    @Select("SELECT b.*, d.name as deptName " +
+    @Select("SELECT b.*, d.dept_name as deptName " +
             "FROM oa_budget b " +
-            "LEFT JOIN org_department d ON b.dept_id = d.id " +
+            "LEFT JOIN org_dept d ON b.dept_id = d.id " +
             "WHERE b.status = 'ACTIVE' AND b.deleted = 0 " +
             "AND b.used_amount > b.budget_amount " +
             "ORDER BY (b.used_amount - b.budget_amount) DESC")

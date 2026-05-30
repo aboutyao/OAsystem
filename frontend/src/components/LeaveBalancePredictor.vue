@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Warning, Calendar, TrendCharts } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Calendar } from '@element-plus/icons-vue'
 import { predictLeaveBalanceExhaustion } from '../api/oa-leaves'
 import type { JsonObject } from '../api/types'
 
@@ -43,7 +43,7 @@ function getRiskIcon(riskLevel: string) {
   switch (riskLevel) {
     case 'HIGH': return Warning
     case 'MEDIUM': return Calendar
-    default: return TrendCharts
+    default: return Document
   }
 }
 
@@ -60,7 +60,7 @@ onMounted(() => loadPredictions())
   <el-card shadow="never" class="predictor-card">
     <template #header>
       <div class="predictor-header">
-        <el-icon><TrendCharts /></el-icon>
+        <el-icon><Document /></el-icon>
         <span>假期余额预测</span>
         <el-button link type="primary" @click="loadPredictions" :loading="loading">刷新</el-button>
       </div>

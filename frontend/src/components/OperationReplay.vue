@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElTimeline, ElTimelineItem, ElTag } from 'element-plus'
-import { VideoPlay, Edit, Delete, Check } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Select } from '@element-plus/icons-vue'
 
 interface ReplayFrame {
   timestamp: string
@@ -34,11 +34,11 @@ async function loadReplay() {
 
 function getActionIcon(action: string) {
   switch (action) {
-    case 'CREATE': return VideoPlay
-    case 'UPDATE': return Edit
+    case 'CREATE': return View
+    case 'UPDATE': return Document
     case 'DELETE': return Delete
-    case 'APPROVE': return Check
-    default: return Edit
+    case 'APPROVE': return Select
+    default: return Document
   }
 }
 
@@ -64,7 +64,7 @@ onMounted(loadReplay)
 <template>
   <div class="operation-replay" v-loading="loading">
     <div class="replay-header">
-      <el-icon><VideoPlay /></el-icon>
+      <el-icon><View /></el-icon>
       <span>操作回放</span>
     </div>
 

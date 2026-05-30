@@ -24,30 +24,30 @@ interface SearchResult {
 }
 
 const NAVIGATION_ITEMS: SearchResult[] = [
-  { id: 'nav-dashboard', type: 'navigation', title: '工作台', icon: 'Odometer', path: '/dashboard' },
+  { id: 'nav-dashboard', type: 'navigation', title: '工作台', icon: 'Document', path: '/dashboard' },
   { id: 'nav-todos', type: 'navigation', title: '我的待办', icon: 'Document', path: '/todos' },
-  { id: 'nav-applications', type: 'navigation', title: '我发起的', icon: 'SetUp', path: '/applications' },
+  { id: 'nav-applications', type: 'navigation', title: '我发起的', icon: 'Document', path: '/applications' },
   { id: 'nav-leaves', type: 'navigation', title: '请假管理', icon: 'Calendar', path: '/oa/leaves' },
-  { id: 'nav-expenses', type: 'navigation', title: '报销管理', icon: 'Wallet', path: '/oa/expenses' },
-  { id: 'nav-purchases', type: 'navigation', title: '采购管理', icon: 'ShoppingCart', path: '/oa/purchases' },
-  { id: 'nav-seals', type: 'navigation', title: '用印管理', icon: 'Stamp', path: '/oa/seals' },
+  { id: 'nav-expenses', type: 'navigation', title: '报销管理', icon: 'Money', path: '/oa/expenses' },
+  { id: 'nav-purchases', type: 'navigation', title: '采购管理', icon: 'Document', path: '/oa/purchases' },
+  { id: 'nav-seals', type: 'navigation', title: '用印管理', icon: 'Document', path: '/oa/seals' },
   { id: 'nav-contracts', type: 'navigation', title: '合同管理', icon: 'Document', path: '/contracts' },
   { id: 'nav-meetings', type: 'navigation', title: '会议室', icon: 'Calendar', path: '/meetings' },
-  { id: 'nav-messages', type: 'navigation', title: '消息中心', icon: 'ChatDotRound', path: '/messages' },
-  { id: 'nav-files', type: 'navigation', title: '文件库', icon: 'FolderOpened', path: '/files' },
-  { id: 'nav-reports', type: 'navigation', title: '数据报表', icon: 'DataAnalysis', path: '/reports' },
-  { id: 'nav-org', type: 'navigation', title: '组织管理', icon: 'UserFilled', path: '/org/departments' },
+  { id: 'nav-messages', type: 'navigation', title: '消息中心', icon: 'Document', path: '/messages' },
+  { id: 'nav-files', type: 'navigation', title: '文件库', icon: 'Document', path: '/files' },
+  { id: 'nav-reports', type: 'navigation', title: '数据报表', icon: 'Document', path: '/reports' },
+  { id: 'nav-org', type: 'navigation', title: '组织管理', icon: 'Document', path: '/org/departments' },
   { id: 'nav-permission', type: 'navigation', title: '权限管理', icon: 'Lock', path: '/permission/roles' },
-  { id: 'nav-workflow', type: 'navigation', title: '流程模板', icon: 'SetUp', path: '/workflow/templates' },
-  { id: 'nav-system', type: 'navigation', title: '系统配置', icon: 'Setting', path: '/system/configs' },
+  { id: 'nav-workflow', type: 'navigation', title: '流程模板', icon: 'Document', path: '/workflow/templates' },
+  { id: 'nav-system', type: 'navigation', title: '系统配置', icon: 'Document', path: '/system/configs' },
   { id: 'nav-audit', type: 'navigation', title: '审计日志', icon: 'View', path: '/audit/logs' },
 ]
 
 const ACTION_ITEMS: SearchResult[] = [
   { id: 'act-leave', type: 'action', title: '发起请假', icon: 'Calendar', path: '/oa/leaves/create' },
-  { id: 'act-expense', type: 'action', title: '发起报销', icon: 'Wallet', path: '/oa/expenses/create' },
-  { id: 'act-seal', type: 'action', title: '发起用章', icon: 'Stamp', path: '/oa/seals/create' },
-  { id: 'act-purchase', type: 'action', title: '发起采购', icon: 'ShoppingCart', path: '/oa/purchases/create' },
+  { id: 'act-expense', type: 'action', title: '发起报销', icon: 'Money', path: '/oa/expenses/create' },
+  { id: 'act-seal', type: 'action', title: '发起用章', icon: 'Document', path: '/oa/seals/create' },
+  { id: 'act-purchase', type: 'action', title: '发起采购', icon: 'Document', path: '/oa/purchases/create' },
   { id: 'act-meeting', type: 'action', title: '预订会议室', icon: 'Calendar', path: '/meetings/booking' },
   { id: 'act-contract', type: 'action', title: '新建合同', icon: 'Document', path: '/contracts/create' },
 ]
@@ -84,7 +84,7 @@ watch(query, async (val) => {
           type: 'search',
           title: u.name,
           subtitle: `${u.username} · ${u.employeeNo}`,
-          icon: 'User',
+          icon: 'Document',
           path: '/org/users',
         })
       }
@@ -120,7 +120,7 @@ watch(query, async (val) => {
           type: 'search',
           title: `${e.createdNameSnapshot || ''} 的报销`,
           subtitle: e.expenseNo,
-          icon: 'Wallet',
+          icon: 'Money',
           path: `/oa/expenses/${e.id}`,
         })
       }
@@ -203,7 +203,7 @@ defineExpose({ open })
       <div v-if="visible" class="command-palette-overlay" @click.self="close">
         <div class="command-palette" @keydown="handleKeydown">
           <div class="command-palette__input-wrapper">
-            <el-icon :size="18" class="command-palette__search-icon"><Search /></el-icon>
+            <el-icon :size="18" class="command-palette__search-icon"><View /></el-icon>
             <input
               v-model="query"
               class="command-palette__input"
@@ -214,12 +214,12 @@ defineExpose({ open })
               :size="14"
               class="command-palette__close"
               @click="close"
-            ><Close /></el-icon>
+            ><Delete /></el-icon>
           </div>
 
           <div class="command-palette__results">
             <div v-if="loading" class="command-palette__loading">
-              <el-icon class="is-loading"><Loading /></el-icon>
+              <el-icon class="is-loading"><Refresh /></el-icon>
               <span>搜索中...</span>
             </div>
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ChatDotRound, At, Send } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface Comment {
   id: number
@@ -76,7 +76,7 @@ onMounted(loadComments)
 <template>
   <div class="discussion-thread">
     <div class="thread-header">
-      <el-icon><ChatDotRound /></el-icon>
+      <el-icon><Document /></el-icon>
       <span>讨论 ({{ comments.length }})</span>
     </div>
 
@@ -111,8 +111,8 @@ onMounted(loadComments)
         @keydown.enter.ctrl="submitComment"
       />
       <div class="input-actions">
-        <el-button :icon="At" text @click="insertMention">@提及</el-button>
-        <el-button type="primary" :icon="Send" :loading="submitting" @click="submitComment">
+        <el-button :icon="Document" text @click="insertMention">@提及</el-button>
+        <el-button type="primary" :icon="Document" :loading="submitting" @click="submitComment">
           发送
         </el-button>
       </div>

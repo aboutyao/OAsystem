@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Scan, Close } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
   scan: [result: string]
@@ -62,7 +62,7 @@ onUnmounted(() => {
   <div class="qr-scanner">
     <div class="scanner-header">
       <span>扫描二维码</span>
-      <el-button text :icon="Close" @click="close" />
+      <el-button text :icon="Delete" @click="close" />
     </div>
 
     <div class="scanner-container">

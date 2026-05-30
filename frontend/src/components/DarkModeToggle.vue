@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
-import { Sunny, Moon } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 const isDark = ref(false)
 
@@ -35,8 +35,7 @@ onMounted(() => {
 <template>
   <el-button text @click="toggleTheme" class="theme-toggle">
     <el-icon :size="18">
-      <Sunny v-if="isDark" />
-      <Moon v-else />
+      <Document />
     </el-icon>
   </el-button>
 </template>

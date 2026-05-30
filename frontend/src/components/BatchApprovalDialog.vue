@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, Close } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Select } from '@element-plus/icons-vue'
 
 interface Task {
   id: number
@@ -103,7 +103,7 @@ async function handleSubmit() {
       <el-button @click="emit('update:visible', false)">取消</el-button>
       <el-button
         :type="action === 'APPROVE' ? 'success' : 'danger'"
-        :icon="action === 'APPROVE' ? Check : Close"
+        :icon="action === 'APPROVE' ? Select : Delete"
         :loading="loading"
         @click="handleSubmit"
       >

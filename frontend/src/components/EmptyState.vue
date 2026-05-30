@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Document } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface Props {
   /** 描述文字 */

@@ -6,7 +6,7 @@ import { isLoading } from '../composables/useLoading'
   <Transition name="fade">
     <div v-if="isLoading" class="global-loading">
       <div class="global-loading__spinner">
-        <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+        <el-icon class="is-loading" :size="24"><Refresh /></el-icon>
         <span class="global-loading__text">加载中...</span>
       </div>
     </div>

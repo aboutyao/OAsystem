@@ -28,7 +28,7 @@ function go(path: string) {
 
 <template>
   <div class="nl-query-trigger" @click="visible = true" title="智能提问">
-    <el-icon :size="18"><ChatDotRound /></el-icon>
+    <el-icon :size="18"><Document /></el-icon>
   </div>
 
   <el-dialog v-model="visible" title="智能问答" width="500px" destroy-on-close>
@@ -40,7 +40,7 @@ function go(path: string) {
         @keyup.enter="handleQuery"
       >
         <template #prefix>
-          <el-icon><ChatDotRound /></el-icon>
+          <el-icon><Document /></el-icon>
         </template>
         <template #append>
           <el-button :loading="loading" @click="handleQuery">问一下</el-button>

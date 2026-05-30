@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Warning, CircleCheck, InfoFilled } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface Risk {
   type: string
@@ -93,7 +93,7 @@ onMounted(loadRisks)
     </div>
 
     <div v-if="risks.length === 0 && !loading" class="no-risk">
-      <el-icon :size="24" color="#67C23A"><CircleCheck /></el-icon>
+      <el-icon :size="24" color="#67C23A"><Select /></el-icon>
       <span>未发现风险</span>
     </div>
   </div>

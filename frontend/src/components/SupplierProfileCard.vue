@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElTag, ElStatistic } from 'element-plus'
-import { Shop, Money, Calendar, TrendCharts } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Calendar } from '@element-plus/icons-vue'
 
 interface SupplierProfile {
   supplierName: string
@@ -67,7 +67,7 @@ onMounted(loadProfile)
 
     <div v-else-if="profile" class="profile-content">
       <div class="profile-header">
-        <el-icon :size="24"><Shop /></el-icon>
+        <el-icon :size="24"><Document /></el-icon>
         <div class="profile-title">
           <h3>{{ profile.supplierName }}</h3>
           <el-tag :type="getActivityLevelType(profile.activityLevel)" size="small">

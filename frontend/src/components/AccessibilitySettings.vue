@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Setting, Eye, FontSize, Monitor } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface AccessibilityConfig {
   highContrast: boolean
@@ -83,7 +83,7 @@ onMounted(loadConfig)
     <div v-loading="loading" class="settings-list">
       <div class="setting-item">
         <div class="setting-info">
-          <el-icon><Eye /></el-icon>
+          <el-icon><View /></el-icon>
           <div>
             <div class="setting-name">高对比度模式</div>
             <div class="setting-desc">增强颜色对比度，便于视觉障碍用户阅读</div>
@@ -94,7 +94,7 @@ onMounted(loadConfig)
 
       <div class="setting-item">
         <div class="setting-info">
-          <el-icon><FontSize /></el-icon>
+          <el-icon><View /></el-icon>
           <div>
             <div class="setting-name">大字体模式</div>
             <div class="setting-desc">放大所有文字，便于视力不佳用户阅读</div>
@@ -105,7 +105,7 @@ onMounted(loadConfig)
 
       <div class="setting-item">
         <div class="setting-info">
-          <el-icon><Monitor /></el-icon>
+          <el-icon><Document /></el-icon>
           <div>
             <div class="setting-name">减少动画</div>
             <div class="setting-desc">减少页面动画效果，便于光敏性癫痫用户</div>
@@ -116,7 +116,7 @@ onMounted(loadConfig)
 
       <div class="setting-item">
         <div class="setting-info">
-          <el-icon><Setting /></el-icon>
+          <el-icon><Document /></el-icon>
           <div>
             <div class="setting-name">屏幕阅读器优化</div>
             <div class="setting-desc">优化界面元素，便于屏幕阅读器识别</div>
@@ -127,7 +127,7 @@ onMounted(loadConfig)
 
       <div class="setting-item">
         <div class="setting-info">
-          <el-icon><Setting /></el-icon>
+          <el-icon><Document /></el-icon>
           <div>
             <div class="setting-name">键盘导航</div>
             <div class="setting-desc">支持纯键盘操作，便于行动不便用户</div>

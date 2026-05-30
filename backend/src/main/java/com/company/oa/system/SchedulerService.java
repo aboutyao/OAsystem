@@ -38,7 +38,7 @@ public class SchedulerService {
     private final ContractInfoMapper contractMapper;
     private final UserMapper userMapper;
     private final MessageService messageService;
-    private final AnomalyDetectionService anomalyDetectionService;
+    private final com.company.oa.workflow.AnomalyDetectionService anomalyDetectionService;
     private final JobTaskLogMapper jobTaskLogMapper;
     private final SequenceService sequenceService;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -48,7 +48,7 @@ public class SchedulerService {
             ContractInfoMapper contractMapper,
             UserMapper userMapper,
             MessageService messageService,
-            AnomalyDetectionService anomalyDetectionService,
+            com.company.oa.workflow.AnomalyDetectionService anomalyDetectionService,
             JobTaskLogMapper jobTaskLogMapper,
             SequenceService sequenceService,
             RedisTemplate<String, Object> redisTemplate

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Download, Search, Filter } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface Template {
   id: number
@@ -116,12 +116,12 @@ onMounted(() => {
             <el-tag size="small">{{ template.category }}</el-tag>
             <el-tag size="small" type="info">{{ template.industry }}</el-tag>
             <span class="download-count">
-              <el-icon><Download /></el-icon>
+              <el-icon><UploadFilled /></el-icon>
               {{ template.downloadCount }}
             </span>
           </div>
         </div>
-        <el-button type="primary" :icon="Download" @click="downloadTemplate(template)">
+        <el-button type="primary" :icon="UploadFilled" @click="downloadTemplate(template)">
           下载
         </el-button>
       </div>

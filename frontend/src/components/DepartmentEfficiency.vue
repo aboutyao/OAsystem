@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElSelect, ElOption, ElStatistic } from 'element-plus'
-import { DataAnalysis, TrendCharts, Timer, Check } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled, Select, Clock } from '@element-plus/icons-vue'
 
 interface EfficiencyData {
   deptId: number
@@ -35,7 +35,7 @@ onMounted(loadEfficiency)
 <template>
   <div class="department-efficiency" v-loading="loading">
     <div class="efficiency-header">
-      <el-icon><DataAnalysis /></el-icon>
+      <el-icon><Document /></el-icon>
       <span>部门效率统计</span>
       <el-select v-model="period" size="small" style="width: 120px; margin-left: auto" @change="loadEfficiency">
         <el-option :value="7" label="近7天" />
@@ -46,7 +46,7 @@ onMounted(loadEfficiency)
 
     <div v-if="efficiency" class="efficiency-stats">
       <div class="stat-card">
-        <el-icon :size="24" color="#409EFF"><TrendCharts /></el-icon>
+        <el-icon :size="24" color="#409EFF"><Document /></el-icon>
         <div class="stat-info">
           <div class="stat-value">{{ efficiency.submissionCount }}</div>
           <div class="stat-label">提交总数</div>
@@ -54,7 +54,7 @@ onMounted(loadEfficiency)
       </div>
 
       <div class="stat-card">
-        <el-icon :size="24" color="#67C23A"><Check /></el-icon>
+        <el-icon :size="24" color="#67C23A"><Select /></el-icon>
         <div class="stat-info">
           <div class="stat-value">{{ efficiency.completedCount }}</div>
           <div class="stat-label">完成总数</div>
@@ -62,7 +62,7 @@ onMounted(loadEfficiency)
       </div>
 
       <div class="stat-card">
-        <el-icon :size="24" color="#E6A23C"><DataAnalysis /></el-icon>
+        <el-icon :size="24" color="#E6A23C"><Document /></el-icon>
         <div class="stat-info">
           <div class="stat-value">{{ efficiency.completionRate }}</div>
           <div class="stat-label">完成率</div>
@@ -70,7 +70,7 @@ onMounted(loadEfficiency)
       </div>
 
       <div class="stat-card">
-        <el-icon :size="24" color="#F56C6C"><Timer /></el-icon>
+        <el-icon :size="24" color="#F56C6C"><Clock /></el-icon>
         <div class="stat-info">
           <div class="stat-value">{{ efficiency.avgDurationHours }}h</div>
           <div class="stat-label">平均耗时</div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Document, Key } from '@element-plus/icons-vue'
+import { Document, Plus, Delete, View, Warning, UploadFilled } from '@element-plus/icons-vue'
 
 interface ApiApp {
   id: number
@@ -113,7 +113,7 @@ onMounted(loadApps)
       </el-table-column>
       <el-table-column label="操作" width="150">
         <template #default="{ row }">
-          <el-button type="primary" link :icon="Key" @click="getToken(row)">获取令牌</el-button>
+          <el-button type="primary" link :icon="Document" @click="getToken(row)">获取令牌</el-button>
         </template>
       </el-table-column>
     </el-table>
